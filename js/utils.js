@@ -1,35 +1,23 @@
-function show(html){
-
-document.getElementById("content").innerHTML = html
-
-}
-
-async function getMembers(){
+async function searchableMembers(){
 
 const snap = await db.collection("members").get()
 
-let members = []
+let list = `<input id="memberSearch" placeholder="Search member">`
+
+list += `<select id="memberSelect">`
 
 snap.forEach(doc=>{
-members.push(doc.data())
+
+const m=doc.data()
+
+list += `<option value="${doc.id}">
+${m.MemberID} - ${m.Name}
+</option>`
+
 })
 
-return members
+list += "</select>"
 
-}
-
-async function memberDropdown(){
-
-const members = await getMembers()
-
-let html = `<select id="memberSelect">`
-
-members.forEach(m=>{
-html += `<option value="${m.MemberID}">${m.MemberID} - ${m.Name}</option>`
-})
-
-html += `</select>`
-
-return html
+return list
 
 }
