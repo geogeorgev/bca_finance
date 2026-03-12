@@ -177,7 +177,6 @@ pdf.save(member.Name+"_statement.pdf")
 }
 
 // Export Income to Excel
-```javascript
 async function exportIncomeExcel(){
 
 const snap = await db.collection("income").get()
