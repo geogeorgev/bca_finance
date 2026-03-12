@@ -5,14 +5,9 @@ show(`
 <h2>Reports</h2>
 
 <button onclick="collectionReport()">Collection Report</button>
-
 <button onclick="expenseReport()">Expense Report</button>
-
 <button onclick="memberContributionReport()">Member Contributions</button>
-
-<button onclick="generateMemberStatement()">Generate Member PDF</button>
-
-<button onclick="exportIncomeExcel()">Export Excel</button>
+<button onclick="backupDatabase()">Backup Database</button>
 
 `)
 
@@ -25,7 +20,7 @@ async function collectionReport(){
 const snap = await db.collection("income").get()
 
 let total = 0
-let html = "<h3>Collection Report</h3>"
+let html = "<h2>Collection Report</h2>"
 
 snap.forEach(doc=>{
 
@@ -35,13 +30,10 @@ total += d.Amount
 
 html += `
 <div class="card">
-
-${d.MemberName}<br>
-Purpose: ${d.Purpose}<br>
-Amount: $${d.Amount}
-
+${d.MemberName} - $${d.Amount}
 </div>
 `
+
 })
 
 html += `<h3>Total: $${total}</h3>`
@@ -57,7 +49,7 @@ async function expenseReport(){
 const snap = await db.collection("expense").get()
 
 let total = 0
-let html = "<h3>Expense Report</h3>"
+let html = "<h2>Expense Report</h2>"
 
 snap.forEach(doc=>{
 
@@ -67,13 +59,10 @@ total += d.Amount
 
 html += `
 <div class="card">
-
-${d.PayeeName}<br>
-Purpose: ${d.Purpose}<br>
-Amount: $${d.Amount}
-
+${d.PayeeName} - $${d.Amount}
 </div>
 `
+
 })
 
 html += `<h3>Total: $${total}</h3>`
@@ -88,7 +77,7 @@ async function memberContributionReport(){
 
 const snap = await db.collection("members").get()
 
-let html = "<h3>Member Contributions</h3>"
+let html = "<h2>Member Contributions</h2>"
 
 snap.forEach(doc=>{
 
@@ -96,12 +85,10 @@ const m = doc.data()
 
 html += `
 <div class="card">
-
-${m.Name}<br>
-Total Contribution: $${m.TotalContribution || 0}
-
+${m.Name} : $${m.TotalContribution || 0}
 </div>
 `
+
 })
 
 show(html)
@@ -110,91 +97,35 @@ show(html)
 
 
 
-async function exportCollectionsExcel(){
+async function backupDatabase(){
 
-const snap = await db.collection("income").get()
+let backup = {}
 
-let rows = []
+const collections = ["members","income","expense","budget"]
+
+for(const col of collections){
+
+const snap = await db.collection(col).get()
+
+backup[col] = []
 
 snap.forEach(doc=>{
-rows.push(doc.data())
+backup[col].push(doc.data())
 })
-
-const worksheet = XLSX.utils.json_to_sheet(rows)
-
-const workbook = XLSX.utils.book_new()
-
-XLSX.utils.book_append_sheet(workbook,worksheet,"Collections")
-
-XLSX.writeFile(workbook,"collections.xlsx")
 
 }
 
-// Member Statement PDF
-async function generateMemberStatement(){
+const json = JSON.stringify(backup,null,2)
 
-const memberId = document.getElementById("memberSelect").value
+const blob = new Blob([json],{type:"application/json"})
 
-const memberDoc = await db.collection("members").doc(memberId).get()
+const url = URL.createObjectURL(blob)
 
-const member = memberDoc.data()
+const a = document.createElement("a")
 
-const incomeSnap = await db.collection("income")
-.where("MemberID","==",memberId)
-.get()
+a.href = url
+a.download = "church_finance_backup.json"
 
-let total = 0
-
-let rows=""
-
-incomeSnap.forEach(doc=>{
-
-const d=doc.data()
-
-total += d.Amount
-
-rows += `
-${d.CollectionDate.toDate().toDateString()} - ${d.Purpose} - $${d.Amount}
-\n
-`
-
-})
-
-const { jsPDF } = window.jspdf
-
-const pdf = new jsPDF()
-
-pdf.text("Church Contribution Statement",20,20)
-
-pdf.text(`Member: ${member.Name}`,20,40)
-
-pdf.text(rows,20,60)
-
-pdf.text(`Total Contribution: $${total}`,20,200)
-
-pdf.save(member.Name+"_statement.pdf")
-
-}
-
-// Export Income to Excel
-async function exportIncomeExcel(){
-
-const snap = await db.collection("income").get()
-
-let rows=[]
-
-snap.forEach(doc=>{
-
-rows.push(doc.data())
-
-})
-
-const sheet = XLSX.utils.json_to_sheet(rows)
-
-const book = XLSX.utils.book_new()
-
-XLSX.utils.book_append_sheet(book,sheet,"Income")
-
-XLSX.writeFile(book,"income_report.xlsx")
+a.click()
 
 }
