@@ -53,6 +53,10 @@ show(html)
 
 }
 
+
+dashboard();
+budgetVsActualChart();
+
 //
 async function budgetVsActualChart(){
 
@@ -66,23 +70,22 @@ snap.forEach(doc=>{
 
 const b = doc.data()
 
-labels.push(b.Category)
-
+labels.push(b.Category + " - " + b.SubCategory)
 budget.push(b.BudgetAmount)
-
 spent.push(b.Spent || 0)
 
 })
 
 show(`
 <h2>Budget vs Actual</h2>
-<canvas id="budgetChart"></canvas>
+
+<canvas id="budgetChart" width="400" height="200"></canvas>
 `)
 
-new Chart(document.getElementById("budgetChart"),{
+const ctx = document.getElementById("budgetChart")
 
+new Chart(ctx,{
 type:'bar',
-
 data:{
 labels:labels,
 datasets:[
@@ -97,8 +100,10 @@ data:spent,
 backgroundColor:'orange'
 }
 ]
+},
+options:{
+responsive:true
 }
-
 })
 
 }
