@@ -1,44 +1,48 @@
 async function loadMembers(){
 
-let html = `
-<h2>Add Member</h2>
-
-<input id="name" placeholder="Name">
-<input id="phone" placeholder="Phone">
-
-<button onclick="addMember()">Add</button>
+show(`
 
 <h2>Members</h2>
-`
 
-const snap = await db.collection("members").get()
+<input id="searchBox" placeholder="Search member" onkeyup="filterMembers()">
+
+<div id="memberList"></div>
+
+`)
+
+const snap = await db.collection("members").orderBy("Name").get()
+
+let html=""
 
 snap.forEach(doc=>{
 
 const m = doc.data()
 
-html += `
-<div class="card">
+html+=`
+<div class="card memberRow">
 ${m.Name} - ${m.Phone}
 </div>
 `
 
 })
 
-show(html)
+document.getElementById("memberList").innerHTML=html
 
 }
 
-async function addMember(){
+function filterMembers(){
 
-await db.collection("members").add({
+const text=document.getElementById("searchBox").value.toLowerCase()
 
-Name:document.getElementById("name").value,
-Phone:document.getElementById("phone").value,
-TotalContribution:0
+const rows=document.getElementsByClassName("memberRow")
 
-})
+for(let r of rows){
 
-loadMembers()
+if(r.innerText.toLowerCase().includes(text))
+r.style.display="block"
+else
+r.style.display="none"
+
+}
 
 }

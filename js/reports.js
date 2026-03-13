@@ -89,3 +89,42 @@ a.download="church_backup.json"
 a.click()
 
 }
+
+//
+async function generateMemberPDF(memberId){
+
+const memberDoc = await db.collection("members").doc(memberId).get()
+const member = memberDoc.data()
+
+const incomeSnap = await db.collection("income")
+.where("MemberID","==",memberId)
+.get()
+
+let total=0
+let rows=""
+
+incomeSnap.forEach(doc=>{
+
+const d=doc.data()
+
+total+=d.Amount
+
+rows+=`${d.Purpose} - $${d.Amount}\n`
+
+})
+
+const { jsPDF } = window.jspdf
+
+const pdf = new jsPDF()
+
+pdf.text("Church Contribution Statement",20,20)
+
+pdf.text(`Member: ${member.Name}`,20,40)
+
+pdf.text(rows,20,60)
+
+pdf.text(`Total Contribution: $${total}`,20,200)
+
+pdf.save(member.Name+"_statement.pdf")
+
+}
