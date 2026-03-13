@@ -169,9 +169,11 @@ paymentType==="Check" ? checkNumber : "",
 
 Amount: amount,
 
-CollectionDate: new Date(collectionDate),
+//CollectionDate: new Date(collectionDate),
+CollectionDate: collectionDate,
 
-CreateDate: new Date()
+//CreateDate: new Date()
+CreateDate: firebase.firestore.FieldValue.serverTimestamp()
 
 })
 
