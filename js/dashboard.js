@@ -50,12 +50,12 @@ Balance: $${income-expense}
 })
 
 show(html)
+budgetVsActualChart();
 
 }
 
 
-dashboard();
-budgetVsActualChart();
+//dashboard();
 
 //
 async function budgetVsActualChart(){
