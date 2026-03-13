@@ -1,14 +1,15 @@
 async function loadMembers(){
 
 let html = `
-<h2>Add Member</h2>
+<h3>Add Member</h3>
 
 <input id="name" placeholder="Name">
 <input id="phone" placeholder="Phone">
+<input id="email" placeholder="Email">
 
 <button onclick="addMember()">Add</button>
 
-<h2>Members</h2>
+<h3>Members</h3>
 `
 
 const snap = await db.collection("members").get()
@@ -19,10 +20,12 @@ const m = doc.data()
 
 html += `
 <div class="card">
-${m.Name} - ${m.Phone}
+
+${m.MemberID} - ${m.Name}<br>
+Phone: ${m.Phone}
+
 </div>
 `
-
 })
 
 show(html)
@@ -31,10 +34,14 @@ show(html)
 
 async function addMember(){
 
-await db.collection("members").add({
+const ref = db.collection("members").doc()
 
-Name:document.getElementById("name").value,
-Phone:document.getElementById("phone").value,
+await ref.set({
+
+MemberID: ref.id,
+Name: document.getElementById("name").value,
+Phone: document.getElementById("phone").value,
+Email: document.getElementById("email").value,
 TotalContribution:0
 
 })

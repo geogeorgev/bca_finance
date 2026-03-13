@@ -3,61 +3,103 @@ async function loadIncome(){
 const members = await memberDropdown()
 
 show(`
-<h3>Collection Entry</h3>
 
-Type
-<select id="type">
-<option>Cash</option>
-<option>Check</option>
-</select>
+<h2>Collection Entry</h2>
 
 Member
 ${members}
 
-Purpose
-<input id="purpose">
-
 Amount
 <input id="amount">
 
-Check Number
-<input id="check">
-
 <button onclick="addIncome()">Save</button>
+
+<br><br>
+
+<button onclick="sundayCollectionScreen()">Sunday Bulk Entry</button>
+
 `)
 
 }
 
-
 async function addIncome(){
 
-const memberId = document.getElementById("memberSelect").value
+const id = document.getElementById("memberSelect").value
 const amount = Number(document.getElementById("amount").value)
 
-const memberDoc = await db.collection("members").doc(memberId).get()
-
-const memberName = memberDoc.data().Name
+const member = await db.collection("members").doc(id).get()
 
 await db.collection("income").add({
 
-MemberID:memberId,
-MemberName:memberName,
-Type:document.getElementById("type").value,
-Purpose:document.getElementById("purpose").value,
-CheckNumber:document.getElementById("check").value,
+MemberID:id,
+MemberName:member.data().Name,
 Amount:amount,
 CollectionDate:new Date()
 
 })
 
-const total = memberDoc.data().TotalContribution || 0
+const total = member.data().TotalContribution || 0
 
-await db.collection("members").doc(memberId).update({
+await db.collection("members").doc(id).update({
 
 TotalContribution: total + amount
 
 })
 
-alert("Collection saved")
+alert("Saved")
+
+}
+
+async function sundayCollectionScreen(){
+
+const snap = await db.collection("members").get()
+
+let html = "<h2>Sunday Collection</h2>"
+
+snap.forEach(doc=>{
+
+const m = doc.data()
+
+html += `
+<div class="card">
+${m.Name}
+<input type="number" id="amt_${doc.id}" value="0">
+</div>
+`
+
+})
+
+html += `<button onclick="saveSundayCollections()">Save</button>`
+
+show(html)
+
+}
+
+async function saveSundayCollections(){
+
+const snap = await db.collection("members").get()
+
+snap.forEach(async doc=>{
+
+const amt = Number(document.getElementById("amt_"+doc.id).value)
+
+if(amt>0){
+
+const member = doc.data()
+
+await db.collection("income").add({
+
+MemberID:doc.id,
+MemberName:member.Name,
+Amount:amt,
+CollectionDate:new Date()
+
+})
+
+}
+
+})
+
+alert("Collections Saved")
 
 }
