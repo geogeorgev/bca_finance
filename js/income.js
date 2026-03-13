@@ -6,36 +6,20 @@ show(`
 
 <h2>Collection Entry</h2>
 
-<label>Contributor Type</label>
-<select id="contributorType" onchange="toggleContributor()">
-<option value="member">Member</option>
-<option value="guest">Guest</option>
-</select>
-
-<br><br>
-
-<div id="memberDiv">
 <label>Member</label>
 ${members}
-</div>
 
-<div id="guestDiv" style="display:none">
-<label>Guest Name</label>
-<input id="guestName" placeholder="Guest name">
-</div>
-
-<br>
+<br><br>
 
 <label>Purpose</label>
 <select id="purpose">
 <option value="Offering-Common">Offering - Common</option>
 <option value="Offering-Individual">Offering - Individual</option>
-<option value="Special Donation">Special Donation</option>
 </select>
 
 <br><br>
 
-<label>Payment Type</label>
+<label>Type</label>
 <select id="type" onchange="toggleCheck()">
 <option value="Cash">Cash</option>
 <option value="Check">Check</option>
@@ -44,8 +28,10 @@ ${members}
 <br><br>
 
 <div id="checkDiv" style="display:none">
+
 <label>Check Number</label>
-<input id="checkNumber" placeholder="Check number">
+<input id="checkNumber" placeholder="Enter check number">
+
 </div>
 
 <br>
@@ -56,44 +42,24 @@ ${members}
 <br><br>
 
 <label>Amount</label>
-<input type="number" id="amount">
+<input id="amount" type="number">
 
 <br><br>
 
 <button onclick="addIncome()">Save Collection</button>
 
 `)
-}
-
-
-/* Toggle guest/member */
-
-function toggleContributor(){
-
-const type = document.getElementById("contributorType").value
-
-if(type==="guest"){
-
-document.getElementById("memberDiv").style.display="none"
-document.getElementById("guestDiv").style.display="block"
-
-}else{
-
-document.getElementById("memberDiv").style.display="block"
-document.getElementById("guestDiv").style.display="none"
-
-}
 
 }
 
 
-/* Toggle check field */
+/* Show check number field */
 
 function toggleCheck(){
 
 const type = document.getElementById("type").value
 
-if(type==="Check")
+if(type === "Check")
 document.getElementById("checkDiv").style.display="block"
 else
 document.getElementById("checkDiv").style.display="none"
@@ -101,72 +67,32 @@ document.getElementById("checkDiv").style.display="none"
 }
 
 
-/* Save income */
+/* Save collection */
 
 async function addIncome(){
 
-const contributorType =
-document.getElementById("contributorType").value
+const memberId = document.getElementById("memberSelect").value
+const amount = Number(document.getElementById("amount").value)
 
-let memberId=""
-let memberName=""
-
-if(contributorType==="member"){
-
-memberId = document.getElementById("memberSelect").value
-
-const memberDoc =
-await db.collection("members").doc(memberId).get()
-
-memberName = memberDoc.data().Name
-
-}else{
-
-memberName =
-document.getElementById("guestName").value
-
-memberId = "GUEST"
-
-}
-
-const purpose =
-document.getElementById("purpose").value
-
-const paymentType =
-document.getElementById("type").value
-
-const checkNumber =
-document.getElementById("checkNumber").value
-
-const amount =
-Number(document.getElementById("amount").value)
+const purpose = document.getElementById("purpose").value
+const type = document.getElementById("type").value
+const checkNumber = document.getElementById("checkNumber").value
 
 const collectionDate =
 document.getElementById("collectionDate").value
 
+const memberDoc =
+await db.collection("members").doc(memberId).get()
 
-/* Generate IncomeID */
+const member = memberDoc.data()
 
-const incomeRef = db.collection("income").doc()
-
-const incomeID = incomeRef.id
-
-
-await incomeRef.set({
-
-IncomeID: incomeID,
+await db.collection("income").add({
 
 MemberID: memberId,
-
-MemberName: memberName,
-
+MemberName: member.Name,
 Purpose: purpose,
-
-Type: paymentType,
-
-CheckNumber:
-paymentType==="Check" ? checkNumber : "",
-
+Type: type,
+CheckNumber: type==="Check" ? checkNumber : "",
 Amount: amount,
 
 CollectionDate: new Date(collectionDate),
@@ -176,23 +102,15 @@ CreateDate: new Date()
 })
 
 
-/* Update member contribution */
+/* Update TotalContribution */
 
-if(memberId !== "GUEST"){
-
-const memberDoc =
-await db.collection("members").doc(memberId).get()
-
-const total =
-memberDoc.data().TotalContribution || 0
+const total = member.TotalContribution || 0
 
 await db.collection("members").doc(memberId).update({
 
 TotalContribution: total + amount
 
 })
-
-}
 
 alert("Collection Saved")
 
