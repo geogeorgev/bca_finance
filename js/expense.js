@@ -18,6 +18,8 @@ show(`
 <th>Category</th>
 <th>SubCategory</th>
 <th>Amount</th>
+<th>Payment Method</th>
+<th>Check #</th>
 <th>Pay Date</th>
 </tr>
 </thead>
@@ -49,6 +51,10 @@ rows+=`
 <td>${e.SubCategory || ""}</td>
 
 <td>${e.Amount}</td>
+
+<td>${e.PaymentMethod || "N/A"}</td>
+
+<td>${e.CheckNumber || ""}</td>
 
 <td>${e.PaymentDate ? new Date(e.PaymentDate.toDate()).toLocaleDateString() : ""}</td>
 
@@ -116,6 +122,17 @@ Amount<br>
 Pay Date<br>
 <input id="payDate" type="date"><br><br>
 
+Payment Method<br>
+<select id="paymentMethod" onchange="toggleCheckNumber()">
+<option value="cash">Cash</option>
+<option value="check">Check</option>
+</select><br><br>
+
+<div id="checkNumberField" style="display:none;">
+Check Number<br>
+<input id="checkNumber" placeholder="Check Number"><br><br>
+</div>
+
 <button onclick="addExpense()">Save Expense</button>
 
 <button onclick="loadExpense()">Cancel</button>
@@ -148,6 +165,8 @@ const category = document.getElementById("budgetCategory").value
 const subCategory = document.getElementById("budgetSubCategory").value
 const amount = Number(document.getElementById("amount").value)
 const payDate = document.getElementById("payDate").value
+const paymentMethod = document.getElementById("paymentMethod").value
+const checkNumber = document.getElementById("checkNumber").value
 
 if(!category || !subCategory){
   alert("Please select Budget Category and SubCategory")
@@ -167,7 +186,9 @@ await db.collection("expense").add({
   Category: category,
   SubCategory: subCategory,
   Amount: amount,
-  PaymentDate: new Date(payDate)
+  PaymentDate: new Date(payDate),
+  PaymentMethod: paymentMethod,
+  CheckNumber: paymentMethod === "check" ? checkNumber : null
 })
 
 /* UPDATE BUDGET BALANCE */
@@ -242,6 +263,24 @@ document.getElementById("payeeField").style.display = "none"
 document.getElementById("memberField").style.display = "none"
 
 document.getElementById("payeeField").style.display = "block"
+
+}
+
+}
+
+/* TOGGLE CHECK NUMBER FIELD VISIBILITY */
+
+function toggleCheckNumber(){
+
+const method = document.getElementById("paymentMethod").value
+
+if(method === "check"){
+
+document.getElementById("checkNumberField").style.display = "block"
+
+} else {
+
+document.getElementById("checkNumberField").style.display = "none"
 
 }
 
