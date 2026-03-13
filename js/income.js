@@ -6,102 +6,112 @@ show(`
 
 <h2>Collection Entry</h2>
 
-Member
+<label>Member</label>
 ${members}
-
-Amount
-<input id="amount">
-
-<button onclick="addIncome()">Save</button>
 
 <br><br>
 
-<button onclick="sundayCollectionScreen()">Sunday Bulk Entry</button>
+<label>Purpose</label>
+<select id="purpose">
+<option value="Offering-Common">Offering - Common</option>
+<option value="Offering-Individual">Offering - Individual</option>
+</select>
+
+<br><br>
+
+<label>Type</label>
+<select id="type" onchange="toggleCheck()">
+<option value="Cash">Cash</option>
+<option value="Check">Check</option>
+</select>
+
+<br><br>
+
+<div id="checkDiv" style="display:none">
+
+<label>Check Number</label>
+<input id="checkNumber" placeholder="Enter check number">
+
+</div>
+
+<br>
+
+<label>Collection Date</label>
+<input type="date" id="collectionDate">
+
+<br><br>
+
+<label>Amount</label>
+<input id="amount" type="number">
+
+<br><br>
+
+<button onclick="addIncome()">Save Collection</button>
 
 `)
 
 }
 
+
+/* Show check number field */
+
+function toggleCheck(){
+
+const type = document.getElementById("type").value
+
+if(type === "Check")
+document.getElementById("checkDiv").style.display="block"
+else
+document.getElementById("checkDiv").style.display="none"
+
+}
+
+
+/* Save collection */
+
 async function addIncome(){
 
-const id = document.getElementById("memberSelect").value
+const memberId = document.getElementById("memberSelect").value
 const amount = Number(document.getElementById("amount").value)
 
-const member = await db.collection("members").doc(id).get()
+const purpose = document.getElementById("purpose").value
+const type = document.getElementById("type").value
+const checkNumber = document.getElementById("checkNumber").value
+
+const collectionDate =
+document.getElementById("collectionDate").value
+
+const memberDoc =
+await db.collection("members").doc(memberId).get()
+
+const member = memberDoc.data()
 
 await db.collection("income").add({
 
-MemberID:id,
-MemberName:member.data().Name,
-Amount:amount,
-CollectionDate:new Date()
+MemberID: memberId,
+MemberName: member.Name,
+Purpose: purpose,
+Type: type,
+CheckNumber: type==="Check" ? checkNumber : "",
+Amount: amount,
+
+CollectionDate: new Date(collectionDate),
+
+CreateDate: new Date()
 
 })
 
-const total = member.data().TotalContribution || 0
 
-await db.collection("members").doc(id).update({
+/* Update TotalContribution */
+
+const total = member.TotalContribution || 0
+
+await db.collection("members").doc(memberId).update({
 
 TotalContribution: total + amount
 
 })
 
-alert("Saved")
+alert("Collection Saved")
 
 }
-
-async function sundayCollectionScreen(){
-
-const snap = await db.collection("members").get()
-
-let html = "<h2>Sunday Collection</h2>"
-
-snap.forEach(doc=>{
-
-const m = doc.data()
-
-html += `
-<div class="card">
-${m.Name}
-<input type="number" id="amt_${doc.id}" value="0">
-</div>
-`
-
-})
-
-html += `<button onclick="saveSundayCollections()">Save</button>`
-
-show(html)
-
-}
-
-async function saveSundayCollections(){
-
-const snap = await db.collection("members").get()
-
-snap.forEach(async doc=>{
-
-const amt = Number(document.getElementById("amt_"+doc.id).value)
-
-if(amt>0){
-
-const member = doc.data()
-
-await db.collection("income").add({
-
-MemberID:doc.id,
-MemberName:member.Name,
-Amount:amt,
-CollectionDate:new Date()
-
-})
-
-}
-
-})
-
-alert("Collections Saved")
-
-}
-
-
