@@ -103,19 +103,5 @@ CollectionDate:new Date()
 alert("Collections Saved")
 
 }
-//
-emailjs.init("YOUR_PUBLIC_KEY")
 
-function sendContributionEmail(memberName,email,amount){
-
-emailjs.send("church_service","contribution_template",{
-
-member_name:memberName,
-amount:amount
-
-})
-
-}
-
-sendContributionEmail(member.Name, member.Email, amount)
 
