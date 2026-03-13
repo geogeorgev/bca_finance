@@ -1,7 +1,6 @@
 async function loadIncome(){
 
-document.getElementById("collectionDate").value =
-new Date().toISOString().split('T')[0];
+
 const members = await memberDropdown()
 
 show(`
