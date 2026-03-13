@@ -20,6 +20,7 @@ show(`
 <th>Amount</th>
 <th>Payment Method</th>
 <th>Check #</th>
+<th>Description</th>
 <th>Pay Date</th>
 </tr>
 </thead>
@@ -55,6 +56,8 @@ rows+=`
 <td>${e.PaymentMethod || "N/A"}</td>
 
 <td>${e.CheckNumber || ""}</td>
+
+<td>${e.Description || ""}</td>
 
 <td>${e.PaymentDate ? new Date(e.PaymentDate.toDate()).toLocaleDateString() : ""}</td>
 
@@ -133,6 +136,9 @@ Check Number<br>
 <input id="checkNumber" placeholder="Check Number"><br><br>
 </div>
 
+Expense Description<br>
+<textarea id="description" placeholder="Enter expense description" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px; font-family:Arial;" rows="3"></textarea><br><br>
+
 <button onclick="addExpense()">Save Expense</button>
 
 <button onclick="loadExpense()">Cancel</button>
@@ -167,6 +173,7 @@ const amount = Number(document.getElementById("amount").value)
 const payDate = document.getElementById("payDate").value
 const paymentMethod = document.getElementById("paymentMethod").value
 const checkNumber = document.getElementById("checkNumber").value
+const description = document.getElementById("description").value
 
 if(!category || !subCategory){
   alert("Please select Budget Category and SubCategory")
@@ -188,7 +195,8 @@ await db.collection("expense").add({
   Amount: amount,
   PaymentDate: new Date(payDate),
   PaymentMethod: paymentMethod,
-  CheckNumber: paymentMethod === "check" ? checkNumber : null
+  CheckNumber: paymentMethod === "check" ? checkNumber : null,
+  Description: description
 })
 
 /* UPDATE BUDGET BALANCE */
