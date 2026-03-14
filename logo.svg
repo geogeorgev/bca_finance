@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#667eea" stroke="#764ba2" stroke-width="2"/>
+
+  <!-- Church cross -->
+  <g transform="translate(100, 100)">
+    <!-- Vertical bar of cross -->
+    <rect x="-8" y="-50" width="16" height="100" fill="white" rx="3"/>
+    <!-- Horizontal bar of cross -->
+    <rect x="-35" y="-15" width="70" height="16" fill="white" rx="3"/>
+
+    <!-- Finance symbol - dollar sign arc -->
+    <circle cx="0" cy="0" r="45" fill="none" stroke="white" stroke-width="2" stroke-dasharray="5,5"/>
+
+    <!-- Decorative circles -->
+    <circle cx="0" cy="-35" r="4" fill="white"/>
+    <circle cx="30" cy="20" r="4" fill="white"/>
+    <circle cx="-30" cy="20" r="4" fill="white"/>
+  </g>
+
+  <!-- Text circle around logo -->
+  <defs>
+    <path id="circlePath" d="M 30, 100 A 70, 70 0 0, 1 170, 100 A 70, 70 0 0, 1 30, 100" fill="none"/>
+  </defs>
+  <text font-family="Arial, sans-serif" font-size="14" fill="white" font-weight="bold" letter-spacing="3">
+    <textPath href="#circlePath" startOffset="50%" text-anchor="middle">
+      CHURCH FINANCE
+    </textPath>
+  </text>
+</svg>
+

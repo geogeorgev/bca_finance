@@ -247,6 +247,11 @@ const pageWidth = pdf.internal.pageSize.getWidth()
 const pageHeight = pdf.internal.pageSize.getHeight()
 let yPosition = 20
 
+// Add logo
+addLogoPDF(pdf, pageWidth)
+
+yPosition = 50
+
 // Header
 pdf.setFontSize(16)
 pdf.text("ANNUAL CONTRIBUTION STATEMENT", pageWidth / 2, yPosition, { align: "center" })
@@ -422,6 +427,11 @@ for(const member of activeMembers){
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
   let yPosition = 20
+
+  // Add logo
+  addLogoPDF(pdf, pageWidth)
+
+  yPosition = 50
 
   // Header
   pdf.setFontSize(16)
