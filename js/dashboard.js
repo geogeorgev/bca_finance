@@ -13,7 +13,7 @@ let ytdIncome = 0
 let ytdExpense = 0
 
 // Process income data
-/*incomeSnap.forEach(doc=>{
+incomeSnap.forEach(doc=>{
   const d = doc.data()
   const date = new Date(d.CollectionDate.seconds*1000)
   const year = date.getFullYear()
@@ -25,37 +25,6 @@ let ytdExpense = 0
 
   const key = year + "-" + String(date.getMonth()+1).padStart(2, '0')
   monthlyIncome[key] = (monthlyIncome[key] || 0) + d.Amount
-})
-*/
-
-expenseSnap.forEach(doc => {
-
-  const d = doc.data()
-
-  if(!d.PaymentDate) return
-
-  let date
-
-  if(d.PaymentDate.seconds){
-    const date = new Date(d.CollectionDate)
-  }
-  else{
-    date = new Date(d.PaymentDate)
-  }
-
-  if(!d.CollectionDate) return
-  const date = new Date(d.CollectionDate)
-
-  const year = date.getFullYear()
-
-  if(year === currentYear){
-    ytdExpense += Number(d.Amount || 0)
-  }
-
-  const key = year + "-" + String(date.getMonth()+1).padStart(2,'0')
-
-  monthlyExpense[key] = (monthlyExpense[key] || 0) + Number(d.Amount || 0)
-
 })
 
 
