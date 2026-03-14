@@ -135,16 +135,24 @@ async function showContributionStatementGenerator(){
 
 const currentYear = new Date().getFullYear()
 
-const membersSnap = await db.collection("members")
-  .where("Active", "==", true)
-  .orderBy("Name")
-  .get()
+const membersSnap = await db.collection("members").get()
 
-let memberOptions = ""
+let activeMembers = []
 
 membersSnap.forEach(doc=>{
   const m = doc.data()
-  memberOptions += `<option value="${doc.id}">${m.Name}</option>`
+  if(m.Active){
+    activeMembers.push({id: doc.id, name: m.Name})
+  }
+})
+
+// Sort by name
+activeMembers.sort((a, b) => a.name.localeCompare(b.name))
+
+let memberOptions = ""
+
+activeMembers.forEach(member=>{
+  memberOptions += `<option value="${member.id}">${member.name}</option>`
 })
 
 show(`
@@ -357,12 +365,18 @@ loadReports()
 /* GENERATE ALL MEMBERS STATEMENTS */
 async function generateAllMembersStatement(taxYear){
 
-const membersSnap = await db.collection("members")
-  .where("Active", "==", true)
-  .orderBy("Name")
-  .get()
+const membersSnap = await db.collection("members").get()
 
-const totalMembers = membersSnap.size
+let activeMembers = []
+
+membersSnap.forEach(doc=>{
+  const m = doc.data()
+  if(m.Active){
+    activeMembers.push({id: doc.id, data: m})
+  }
+})
+
+const totalMembers = activeMembers.length
 
 if(totalMembers === 0){
   alert("No active members found")
@@ -371,11 +385,11 @@ if(totalMembers === 0){
 
 let processedCount = 0
 
-for(const memberDoc of membersSnap.docs){
-  const member = memberDoc.data()
+for(const member of activeMembers){
+  const memberData = member.data
 
   const incomeSnap = await db.collection("income")
-    .where("MemberID", "==", memberDoc.id)
+    .where("MemberID", "==", member.id)
     .get()
 
   let totalContribution = 0
@@ -430,31 +444,31 @@ for(const memberDoc of membersSnap.docs){
   pdf.setFont(undefined, "normal")
   pdf.setFontSize(10)
 
-  pdf.text(`Name: ${member.Name}`, 20, yPosition)
+  pdf.text(`Name: ${memberData.Name}`, 20, yPosition)
   yPosition += 7
 
-  if(member.Address1){
-    pdf.text(`Address: ${member.Address1}`, 20, yPosition)
+  if(memberData.Address1){
+    pdf.text(`Address: ${memberData.Address1}`, 20, yPosition)
     yPosition += 7
   }
 
-  if(member.Address2){
-    pdf.text(`${member.Address2}`, 20, yPosition)
+  if(memberData.Address2){
+    pdf.text(`${memberData.Address2}`, 20, yPosition)
     yPosition += 7
   }
 
-  if(member.Address3){
-    pdf.text(`${member.Address3}`, 20, yPosition)
+  if(memberData.Address3){
+    pdf.text(`${memberData.Address3}`, 20, yPosition)
     yPosition += 7
   }
 
-  if(member.Email){
-    pdf.text(`Email: ${member.Email}`, 20, yPosition)
+  if(memberData.Email){
+    pdf.text(`Email: ${memberData.Email}`, 20, yPosition)
     yPosition += 7
   }
 
-  if(member.Phone){
-    pdf.text(`Phone: ${member.Phone}`, 20, yPosition)
+  if(memberData.Phone){
+    pdf.text(`Phone: ${memberData.Phone}`, 20, yPosition)
     yPosition += 7
   }
 
@@ -514,7 +528,7 @@ for(const memberDoc of membersSnap.docs){
   pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, yPosition)
 
   // Save PDF
-  pdf.save(`${member.Name}_Contribution_Statement_${taxYear}.pdf`)
+  pdf.save(`${memberData.Name}_Contribution_Statement_${taxYear}.pdf`)
 
   processedCount++
 }
