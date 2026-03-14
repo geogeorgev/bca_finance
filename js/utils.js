@@ -30,23 +30,48 @@ return html
 function addLogoPDF(pdf, pageWidth) {
   const logoImg = document.getElementById("headerLogo")
 
-  if(logoImg && logoImg.src){
+  if(logoImg && logoImg.complete && logoImg.src){
     try {
-      // Create a canvas to convert the image
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")
-      const img = new Image()
-
-      img.onload = function() {
-        ctx.drawImage(img, 0, 0)
-        const imgData = canvas.toDataURL("image/png")
-        // Add image to PDF (positioned at top)
-        pdf.addImage(imgData, "PNG", pageWidth / 2 - 15, 10, 30, 30)
-      }
-
-      img.src = logoImg.src
+      pdf.addImage(logoImg, "PNG", pageWidth / 2 - 15, 10, 30, 30)
     } catch(e) {
-      console.log("Logo image could not be added to PDF")
+      console.log("Logo could not be added to PDF:", e)
     }
   }
+}
+
+/* ADD LOGO TO PDF - ASYNC VERSION */
+async function addLogoPDFAsync(pdf, pageWidth) {
+  return new Promise((resolve) => {
+    const logoImg = document.getElementById("headerLogo")
+
+    if(!logoImg || !logoImg.src){
+      resolve()
+      return
+    }
+
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+
+    img.onload = function() {
+      try {
+        const canvas = document.createElement("canvas")
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext("2d")
+        ctx.drawImage(img, 0, 0)
+        const imgData = canvas.toDataURL("image/png")
+        pdf.addImage(imgData, "PNG", pageWidth / 2 - 15, 10, 30, 30)
+      } catch(e) {
+        console.log("Logo could not be added to PDF:", e)
+      }
+      resolve()
+    }
+
+    img.onerror = function() {
+      console.log("Failed to load logo image")
+      resolve()
+    }
+
+    img.src = logoImg.src
+  })
 }
