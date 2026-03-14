@@ -49,7 +49,10 @@ const d=doc.data()
 
 total+=d.Amount
 
-html+=`<div class="card">${d.PayeeName} $${d.Amount}</div>`
+//html+=`<div class="card">${d.PayeeName} $${d.Amount}</div>`
+
+const payee = d.MemberName || d.PayeeName || "Unknown"
+html += `<div class="card">${payee} $${d.Amount}</div>`
 
 })
 
