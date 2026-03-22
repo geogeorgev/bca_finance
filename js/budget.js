@@ -9,82 +9,125 @@ show(`
 
 <br><br>
 
-<table border="1" width="100%" id="budgetTable">
-
-<thead>
-<tr>
-<th>BudgetID</th>
-<th>Category</th>
-<th>SubCategory</th>
-<th>BudgetAmount</th>
-<th>Spent</th>
-<th>Balance</th>
-</tr>
-</thead>
-
-<tbody id="budgetBody"></tbody>
-
-</table>
+<div id="budgetYears"></div>
 
 `)
 
-const snap = await db.collection("budget").orderBy("Category").get()
+const snap = await db.collection("budget").get()
 
-let budgetsByCategory = {}
+let budgetsByYear = {}
+let budgetsByYearAndCategory = {}
 
-// Group budgets by category
+// Group budgets by year (extracted from BudgetID) and category
 snap.forEach(doc=>{
   const b = doc.data()
-  if (!budgetsByCategory[b.Category]) {
-    budgetsByCategory[b.Category] = []
+  // Extract year from BudgetID (e.g., "2026-Missions" -> "2026")
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+  const category = b.Category
+
+  if (!budgetsByYear[year]) {
+    budgetsByYear[year] = []
+    budgetsByYearAndCategory[year] = {}
   }
-  budgetsByCategory[b.Category].push(b)
+
+  budgetsByYear[year].push(b)
+
+  if (!budgetsByYearAndCategory[year][category]) {
+    budgetsByYearAndCategory[year][category] = []
+  }
+
+  budgetsByYearAndCategory[year][category].push(b)
 })
 
-let rows = ""
+// Create tables for each year
+let yearsHtml = ""
+const sortedYears = Object.keys(budgetsByYear).sort().reverse()
 
-// Display each category with items and summary
-for (const category in budgetsByCategory) {
-  const items = budgetsByCategory[category]
-  let categoryBudgetTotal = 0
-  let categorySpentTotal = 0
-  let categoryBalanceTotal = 0
+for (const year of sortedYears) {
+  let tableHtml = `
+  <h3>Budget Year ${year}</h3>
+  <table border="1" width="100%" class="budgetTable">
+  <thead>
+  <tr>
+  <th>BudgetID</th>
+  <th>Category</th>
+  <th>SubCategory</th>
+  <th>BudgetAmount</th>
+  <th>Spent</th>
+  <th>Balance</th>
+  </tr>
+  </thead>
+  <tbody>
+  `
 
-  // Add individual items for this category
-  items.forEach(b => {
-    const budgetAmount = b.BudgetAmount || 0
-    const spent = b.Spent || 0
-    const balance = b.Balance || (budgetAmount - spent)
+  let yearBudgetTotal = 0
+  let yearSpentTotal = 0
+  let yearBalanceTotal = 0
 
-    categoryBudgetTotal += budgetAmount
-    categorySpentTotal += spent
-    categoryBalanceTotal += balance
+  const categoriesForYear = budgetsByYearAndCategory[year]
 
-    rows += `
-    <tr>
-      <td>${b.BudgetID || ""}</td>
-      <td>${b.Category}</td>
-      <td>${b.SubCategory}</td>
-      <td>${budgetAmount}</td>
-      <td>${spent}</td>
-      <td>${balance}</td>
+  for (const category in categoriesForYear) {
+    const items = categoriesForYear[category]
+    let categoryBudgetTotal = 0
+    let categorySpentTotal = 0
+    let categoryBalanceTotal = 0
+
+    // Add individual items for this category
+    items.forEach(b => {
+      const budgetAmount = b.BudgetAmount || 0
+      const spent = b.Spent || 0
+      const balance = b.Balance || (budgetAmount - spent)
+
+      categoryBudgetTotal += budgetAmount
+      categorySpentTotal += spent
+      categoryBalanceTotal += balance
+
+      tableHtml += `
+      <tr>
+        <td>${b.BudgetID || ""}</td>
+        <td>${b.Category}</td>
+        <td>${b.SubCategory}</td>
+        <td>${budgetAmount}</td>
+        <td>${spent}</td>
+        <td>${balance}</td>
+      </tr>
+      `
+    })
+
+    // Add category summary row
+    tableHtml += `
+    <tr style="background-color: #e8e8e8; font-weight: bold;">
+      <td colspan="2">${category} TOTAL</td>
+      <td></td>
+      <td>${categoryBudgetTotal}</td>
+      <td>${categorySpentTotal}</td>
+      <td>${categoryBalanceTotal}</td>
     </tr>
     `
-  })
 
-  // Add category summary row
-  rows += `
-  <tr style="background-color: #e8e8e8; font-weight: bold;">
-    <td colspan="2">${category} TOTAL</td>
+    yearBudgetTotal += categoryBudgetTotal
+    yearSpentTotal += categorySpentTotal
+    yearBalanceTotal += categoryBalanceTotal
+  }
+
+  // Add year grand total row
+  tableHtml += `
+  <tr style="background-color: #d4d4d4; font-weight: bold; font-size: 14px;">
+    <td colspan="2">GRAND TOTAL (${year})</td>
     <td></td>
-    <td>${categoryBudgetTotal}</td>
-    <td>${categorySpentTotal}</td>
-    <td>${categoryBalanceTotal}</td>
+    <td>${yearBudgetTotal}</td>
+    <td>${yearSpentTotal}</td>
+    <td>${yearBalanceTotal}</td>
   </tr>
+  </tbody>
+  </table>
+  <br><br>
   `
+
+  yearsHtml += tableHtml
 }
 
-document.getElementById("budgetBody").innerHTML = rows
+document.getElementById("budgetYears").innerHTML = yearsHtml
 
 }
 
@@ -158,16 +201,20 @@ loadBudget()
 
 function printBudget(){
 
-const table =
-document.getElementById("budgetTable").outerHTML
+const tables = document.querySelectorAll(".budgetTable")
+let tablesHtml = ""
+
+tables.forEach(table => {
+  tablesHtml += table.outerHTML
+})
 
 const win = window.open("")
 
 win.document.write(`
 
-<h2>Church Budget</h2>
+<h2>Church Budget Report</h2>
 
-${table}
+${tablesHtml}
 
 `)
 

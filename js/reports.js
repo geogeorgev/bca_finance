@@ -15,22 +15,27 @@ show(`
 
 async function collectionReport(){
 
+const currentYear = new Date().getFullYear()
 const snap = await db.collection("income").get()
 
 let total=0
-let html="<h2>Collection Report</h2>"
+let html="<h2>Collection Report - Year " + currentYear + "</h2>"
 
 snap.forEach(doc=>{
 
 const d=doc.data()
+if(!d.CollectionDate) return
+const date = new Date(d.CollectionDate)
 
-total+=d.Amount
-
-html+=`<div class="card">${d.MemberName} $${d.Amount}</div>`
+// Only include collections for current year
+if(date.getFullYear() === currentYear){
+  total+=d.Amount
+  html+=`<div class="card">${d.MemberName} $${d.Amount}</div>`
+}
 
 })
 
-html+=`<h3>Total ${total}</h3>`
+html+=`<h3>Total $${total.toFixed(2)}</h3>`
 
 show(html)
 
@@ -38,25 +43,28 @@ show(html)
 
 async function expenseReport(){
 
+const currentYear = new Date().getFullYear()
 const snap=await db.collection("expense").get()
 
 let total=0
-let html="<h2>Expense Report</h2>"
+let html="<h2>Expense Report - Year " + currentYear + "</h2>"
 
 snap.forEach(doc=>{
 
 const d=doc.data()
+const paymentDate = d.PaymentDate ? new Date(d.PaymentDate.toDate()) : null
+const year = paymentDate ? paymentDate.getFullYear() : null
 
-total+=d.Amount
-
-//html+=`<div class="card">${d.PayeeName} $${d.Amount}</div>`
-
-const payee = d.MemberName || d.PayeeName || "Unknown"
-html += `<div class="card">${payee} $${d.Amount}</div>`
+// Only include expenses for current year
+if(year === currentYear){
+  total+=d.Amount
+  const payee = d.MemberName || d.PayeeName || "Unknown"
+  html += `<div class="card">${payee} $${d.Amount}</div>`
+}
 
 })
 
-html+=`<h3>Total ${total}</h3>`
+html+=`<h3>Total $${total.toFixed(2)}</h3>`
 
 show(html)
 

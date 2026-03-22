@@ -48,13 +48,19 @@ expenseSnap.forEach(doc=>{
   monthlyExpense[key] = (monthlyExpense[key] || 0) + d.Amount
 })
 
-// Get budget totals
+// Get budget totals for current year only
 let totalBudget = 0
 let totalSpent = 0
 budgetSnap.forEach(doc=>{
   const b = doc.data()
-  totalBudget += b.BudgetAmount || 0
-  totalSpent += b.Spent || 0
+  // Extract year from BudgetID (e.g., "2026-Missions" -> "2026")
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : currentYear.toString()
+
+  // Only include budgets for current year
+  if (year === currentYear.toString()) {
+    totalBudget += b.BudgetAmount || 0
+    totalSpent += b.Spent || 0
+  }
 })
 
 const ytdBalance = ytdIncome - ytdExpense
@@ -259,15 +265,23 @@ new Chart(ctx, {
 /* DRAW BUDGET VS ACTUAL CHART */
 async function drawBudgetVsActualChart(budgetSnap){
 
+const currentYear = new Date().getFullYear()
+
 let labels = []
 let budgetData = []
 let spentData = []
 
 budgetSnap.forEach(doc=>{
   const b = doc.data()
-  labels.push(b.Category + " - " + b.SubCategory)
-  budgetData.push(b.BudgetAmount || 0)
-  spentData.push(b.Spent || 0)
+  // Extract year from BudgetID
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : currentYear.toString()
+
+  // Only include budgets for current year
+  if (year === currentYear.toString()) {
+    labels.push(b.Category + " - " + b.SubCategory)
+    budgetData.push(b.BudgetAmount || 0)
+    spentData.push(b.Spent || 0)
+  }
 })
 
 const ctx = document.getElementById("budgetChart")

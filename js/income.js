@@ -56,6 +56,11 @@ ${members}
 
 <br><br>
 
+<script>
+// Set default date to today
+document.getElementById("collectionDate").valueAsDate = new Date();
+</script>
+
 <label>Amount</label>
 <input type="number" id="amount">
 
