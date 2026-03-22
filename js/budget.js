@@ -30,35 +30,61 @@ show(`
 
 const snap = await db.collection("budget").orderBy("Category").get()
 
-let rows=""
+let budgetsByCategory = {}
 
+// Group budgets by category
 snap.forEach(doc=>{
-
-const b = doc.data()
-
-rows+=`
-
-<tr>
-
-<td>${b.BudgetID || ""}</td>
-
-<td>${b.Category}</td>
-
-<td>${b.SubCategory}</td>
-
-<td>${b.BudgetAmount}</td>
-
-<td>${b.Spent || 0}</td>
-
-<td>${b.Balance || (b.BudgetAmount-(b.Spent||0))}</td>
-
-</tr>
-
-`
-
+  const b = doc.data()
+  if (!budgetsByCategory[b.Category]) {
+    budgetsByCategory[b.Category] = []
+  }
+  budgetsByCategory[b.Category].push(b)
 })
 
-document.getElementById("budgetBody").innerHTML=rows
+let rows = ""
+
+// Display each category with items and summary
+for (const category in budgetsByCategory) {
+  const items = budgetsByCategory[category]
+  let categoryBudgetTotal = 0
+  let categorySpentTotal = 0
+  let categoryBalanceTotal = 0
+
+  // Add individual items for this category
+  items.forEach(b => {
+    const budgetAmount = b.BudgetAmount || 0
+    const spent = b.Spent || 0
+    const balance = b.Balance || (budgetAmount - spent)
+
+    categoryBudgetTotal += budgetAmount
+    categorySpentTotal += spent
+    categoryBalanceTotal += balance
+
+    rows += `
+    <tr>
+      <td>${b.BudgetID || ""}</td>
+      <td>${b.Category}</td>
+      <td>${b.SubCategory}</td>
+      <td>${budgetAmount}</td>
+      <td>${spent}</td>
+      <td>${balance}</td>
+    </tr>
+    `
+  })
+
+  // Add category summary row
+  rows += `
+  <tr style="background-color: #e8e8e8; font-weight: bold;">
+    <td colspan="2">${category} TOTAL</td>
+    <td></td>
+    <td>${categoryBudgetTotal}</td>
+    <td>${categorySpentTotal}</td>
+    <td>${categoryBalanceTotal}</td>
+  </tr>
+  `
+}
+
+document.getElementById("budgetBody").innerHTML = rows
 
 }
 
