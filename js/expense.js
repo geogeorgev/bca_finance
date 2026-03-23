@@ -86,6 +86,8 @@ const memberDropdownHtml = await memberDropdown()
 const currentYear = new Date().getFullYear()
 const budgetSnap = await db.collection("budget").get()
 
+// Get all available years from budgets
+let yearsSet = new Set()
 let categoryOptions = ""
 let categorySet = new Set()
 
@@ -94,8 +96,9 @@ budgetSnap.forEach(doc=>{
 const b = doc.data()
 // Extract year from BudgetID
 const year = b.BudgetID ? b.BudgetID.split("-")[0] : currentYear.toString()
+yearsSet.add(year)
 
-// Only include categories for current year
+// Initially populate categories for current year
 if (year === currentYear.toString() && !categorySet.has(b.Category)) {
   categoryOptions += `<option value="${b.Category}">${b.Category}</option>`
   categorySet.add(b.Category)
@@ -103,9 +106,20 @@ if (year === currentYear.toString() && !categorySet.has(b.Category)) {
 
 })
 
+const years = Array.from(yearsSet).sort().reverse()
+let yearOptions = ""
+years.forEach(year => {
+  yearOptions += `<option value="${year}" ${year === currentYear.toString() ? 'selected' : ''}>${year}</option>`
+})
+
 show(`
 
 <h2>Add Expense</h2>
+
+Budget Year<br>
+<select id="budgetYear" onchange="updateCategoriesForYear()">
+${yearOptions}
+</select><br><br>
 
 Type<br>
 <select id="expenseType" onchange="togglePayeeField()">
@@ -172,6 +186,7 @@ await loadSubCategories()
 async function addExpense(){
 
 const expenseType = document.getElementById("expenseType").value
+const budgetYear = document.getElementById("budgetYear").value
 let memberName = ""
 
 if(expenseType === "member"){
@@ -210,7 +225,8 @@ await db.collection("expense").add({
   PaymentDate: new Date(payDate),
   PaymentMethod: paymentMethod,
   CheckNumber: paymentMethod === "check" ? checkNumber : null,
-  Description: description
+  Description: description,
+  BudgetYear: budgetYear
 })
 
 /* UPDATE BUDGET BALANCE */
@@ -221,19 +237,30 @@ const budgetSnap = await db.collection("budget")
   .get()
 
 if(!budgetSnap.empty){
-  const budgetDoc = budgetSnap.docs[0]
-  const budgetRef = db.collection("budget").doc(budgetDoc.id)
-  const budget = budgetDoc.data()
-
-  const spent = budget.Spent || 0
-  const total = budget.BudgetAmount
-
-  const newSpent = spent + amount
-
-  await budgetRef.update({
-    Spent: newSpent,
-    Balance: total - newSpent
+  // Find the budget for the selected year
+  let budgetDoc = null
+  budgetSnap.forEach(doc=>{
+    const b = doc.data()
+    const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+    if(year === budgetYear){
+      budgetDoc = doc
+    }
   })
+
+  if(budgetDoc){
+    const budgetRef = db.collection("budget").doc(budgetDoc.id)
+    const budget = budgetDoc.data()
+
+    const spent = budget.Spent || 0
+    const total = budget.BudgetAmount
+
+    const newSpent = spent + amount
+
+    await budgetRef.update({
+      Spent: newSpent,
+      Balance: total - newSpent
+    })
+  }
 }
 
 alert("Expense Saved and Budget Updated")
@@ -247,6 +274,7 @@ loadExpense()
 async function loadSubCategories(){
 
 const currentYear = new Date().getFullYear()
+const selectedYear = document.getElementById("budgetYear") ? document.getElementById("budgetYear").value : currentYear.toString()
 const category = document.getElementById("budgetCategory").value
 
 const snap = await db.collection("budget")
@@ -261,8 +289,8 @@ const b = doc.data()
 // Extract year from BudgetID
 const year = b.BudgetID ? b.BudgetID.split("-")[0] : currentYear.toString()
 
-// Only include subcategories for current year
-if (year === currentYear.toString()) {
+// Include subcategories for selected year (both active and inactive)
+if (year === selectedYear) {
   html += `<option value="${b.SubCategory}">${b.SubCategory}</option>`
 }
 
@@ -271,6 +299,31 @@ if (year === currentYear.toString()) {
 html += "</select>"
 
 document.getElementById("budgetSubCategory").innerHTML = html
+
+}
+
+/* UPDATE CATEGORIES WHEN BUDGET YEAR IS CHANGED */
+
+async function updateCategoriesForYear(){
+
+const budgetYear = document.getElementById("budgetYear").value
+const budgetSnap = await db.collection("budget").get()
+
+let categorySet = new Set()
+let categoryOptions = "<option value=''>-- Select Category --</option>"
+
+budgetSnap.forEach(doc=>{
+  const b = doc.data()
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+
+  if(year === budgetYear && !categorySet.has(b.Category)){
+    categoryOptions += `<option value="${b.Category}">${b.Category}</option>`
+    categorySet.add(b.Category)
+  }
+})
+
+document.getElementById("budgetCategory").innerHTML = categoryOptions
+document.getElementById("budgetSubCategory").innerHTML = "<select id='budgetSubCategory'></select>"
 
 }
 

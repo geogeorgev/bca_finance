@@ -6,6 +6,7 @@ show(`
 
 <button onclick="showAddBudget()">Add Budget</button>
 <button onclick="printBudget()">Print</button>
+<button onclick="showBulkActivation()">Manage Year Status</button>
 
 <br><br>
 
@@ -259,5 +260,130 @@ if(confirm(`Are you sure you want to ${newStatus === 'Active' ? 'activate' : 'de
   alert(`Budget ${newStatus === 'Active' ? 'activated' : 'deactivated'}`)
   loadBudget()
 }
+
+}
+
+
+
+/* SHOW BULK ACTIVATION SCREEN */
+
+async function showBulkActivation(){
+
+const snap = await db.collection("budget").get()
+
+let yearsSet = new Set()
+
+snap.forEach(doc=>{
+  const b = doc.data()
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+  yearsSet.add(year)
+})
+
+const years = Array.from(yearsSet).sort().reverse()
+
+let yearOptions = ""
+years.forEach(year => {
+  yearOptions += `<option value="${year}">${year}</option>`
+})
+
+show(`
+
+<h2>Manage Budget Year Status</h2>
+
+<p>Use this to activate/deactivate all budgets for a specific year.</p>
+<p>Example: In January 2027, activate 2027 and deactivate 2026</p>
+
+<br>
+
+Select Year to Activate:<br>
+<select id="yearSelect">
+  <option value="">-- Select Year --</option>
+  ${yearOptions}
+</select><br><br>
+
+<button onclick="activateBudgetYear()">Activate All for Selected Year</button>
+<button onclick="deactivateAllOtherYears()">Deactivate All Other Years</button>
+
+<hr>
+
+<button onclick="loadBudget()">Back</button>
+
+`)
+
+}
+
+
+
+/* ACTIVATE ALL BUDGETS FOR SELECTED YEAR */
+
+async function activateBudgetYear(){
+
+const selectedYear = document.getElementById("yearSelect").value
+
+if(!selectedYear){
+  alert("Please select a year")
+  return
+}
+
+if(!confirm(`Activate all budgets for year ${selectedYear}?`)){
+  return
+}
+
+const snap = await db.collection("budget").get()
+
+let updateCount = 0
+
+snap.forEach(doc=>{
+  const b = doc.data()
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+
+  if(year === selectedYear){
+    db.collection("budget").doc(doc.id).update({
+      BudgetStatus: "Active"
+    })
+    updateCount++
+  }
+})
+
+alert(`Activated ${updateCount} budget entries for year ${selectedYear}`)
+loadBudget()
+
+}
+
+
+
+/* DEACTIVATE ALL BUDGETS FOR OTHER YEARS */
+
+async function deactivateAllOtherYears(){
+
+const selectedYear = document.getElementById("yearSelect").value
+
+if(!selectedYear){
+  alert("Please select a year")
+  return
+}
+
+if(!confirm(`Deactivate all budgets for years OTHER than ${selectedYear}?`)){
+  return
+}
+
+const snap = await db.collection("budget").get()
+
+let updateCount = 0
+
+snap.forEach(doc=>{
+  const b = doc.data()
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+
+  if(year !== selectedYear){
+    db.collection("budget").doc(doc.id).update({
+      BudgetStatus: "Inactive"
+    })
+    updateCount++
+  }
+})
+
+alert(`Deactivated ${updateCount} budget entries for all years except ${selectedYear}`)
+loadBudget()
 
 }
