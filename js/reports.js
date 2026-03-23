@@ -225,29 +225,217 @@ alert("Report exported to Excel successfully!")
 async function expenseReport(){
 
 const currentYear = new Date().getFullYear()
-const snap=await db.collection("expense").get()
+const currentDate = new Date()
+const yearStart = new Date(currentYear, 0, 1)
+const yearStartStr = yearStart.toISOString().split('T')[0]
+const currentDateStr = currentDate.toISOString().split('T')[0]
 
-let total=0
-let html="<h2>Expense Report - Year " + currentYear + "</h2>"
+show(`
 
-snap.forEach(doc=>{
+<h2>Expense Report - Year ${currentYear}</h2>
 
-const d=doc.data()
-const paymentDate = d.PaymentDate ? new Date(d.PaymentDate.toDate()) : null
-const year = paymentDate ? paymentDate.getFullYear() : null
+<div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
 
-// Only include expenses for current year
-if(year === currentYear){
-  total+=d.Amount
-  const payee = d.MemberName || d.PayeeName || "Unknown"
-  html += `<div class="card">${payee} $${d.Amount}</div>`
+  <label>Report Type:</label>
+  <select id="expenseReportType" onchange="updateExpenseReportDateFields()">
+    <option value="ytd">Year to Date (Default)</option>
+    <option value="month">Specific Month</option>
+    <option value="custom">Custom Date Range</option>
+  </select>
+
+  <br><br>
+
+  <div id="expenseMonthField" style="display:none;">
+    <label>Select Month & Year:</label>
+    <input type="month" id="expenseMonthInput" value="${currentYear}-${String(currentDate.getMonth() + 1).padStart(2, '0')}">
+  </div>
+
+  <div id="expenseCustomField" style="display:none;">
+    <label>Start Date:</label>
+    <input type="date" id="expenseStartDate" value="${yearStartStr}">
+    <br><br>
+    <label>End Date:</label>
+    <input type="date" id="expenseEndDate" value="${currentDateStr}">
+  </div>
+
+  <br><br>
+
+  <button onclick="generateExpenseReport()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate Report</button>
+  <button onclick="exportExpenseToExcel()" style="padding: 8px 16px; background: #38ef7d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Export to Excel</button>
+
+</div>
+
+<div id="expenseReportContent"></div>
+
+`)
+
 }
 
+function updateExpenseReportDateFields(){
+  const reportType = document.getElementById("expenseReportType").value
+
+  document.getElementById("expenseMonthField").style.display = reportType === "month" ? "block" : "none"
+  document.getElementById("expenseCustomField").style.display = reportType === "custom" ? "block" : "none"
+}
+
+async function generateExpenseReport(){
+
+const currentYear = new Date().getFullYear()
+const reportType = document.getElementById("expenseReportType").value
+const snap = await db.collection("expense").get()
+
+let startDate, endDate
+let reportTitle = `Expense Report - Year ${currentYear}`
+
+if(reportType === "ytd"){
+  startDate = new Date(currentYear, 0, 1)
+  endDate = new Date()
+  reportTitle = `Expense Report - Year to Date (${currentYear})`
+} else if(reportType === "month"){
+  const monthValue = document.getElementById("expenseMonthInput").value
+  const [year, month] = monthValue.split('-')
+  startDate = new Date(year, month - 1, 1)
+  endDate = new Date(year, month, 0)
+  reportTitle = `Expense Report - ${monthValue}`
+} else if(reportType === "custom"){
+  startDate = new Date(document.getElementById("expenseStartDate").value)
+  endDate = new Date(document.getElementById("expenseEndDate").value)
+  reportTitle = `Expense Report - ${document.getElementById("expenseStartDate").value} to ${document.getElementById("expenseEndDate").value}`
+}
+
+let expenses = []
+let totalAmount = 0
+
+snap.forEach(doc=>{
+  const d = doc.data()
+  if(!d.PaymentDate) return
+
+  const paymentDate = new Date(d.PaymentDate.toDate())
+
+  if(paymentDate >= startDate && paymentDate <= endDate){
+    expenses.push({
+      ...d,
+      paymentDateObj: paymentDate
+    })
+    totalAmount += d.Amount || 0
+  }
 })
 
-html+=`<h3>Total $${total.toFixed(2)}</h3>`
+// Sort by date descending
+expenses.sort((a, b) => b.paymentDateObj - a.paymentDateObj)
 
-show(html)
+let html = `
+<h3>${reportTitle}</h3>
+
+<table border="1" width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+<thead style="background-color: #ee0979; color: white;">
+<tr>
+  <th style="padding: 10px; text-align: left;">Payment Date</th>
+  <th style="padding: 10px; text-align: left;">Type</th>
+  <th style="padding: 10px; text-align: left;">Payee Name</th>
+  <th style="padding: 10px; text-align: left;">Member Name</th>
+  <th style="padding: 10px; text-align: left;">Category</th>
+  <th style="padding: 10px; text-align: left;">SubCategory</th>
+  <th style="padding: 10px; text-align: left;">Payment Method</th>
+  <th style="padding: 10px; text-align: left;">Check #</th>
+  <th style="padding: 10px; text-align: right;">Amount</th>
+  <th style="padding: 10px; text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+`
+
+expenses.forEach(e => {
+  const payDate = e.paymentDateObj.toLocaleDateString()
+  const type = e.Type || ""
+  const payeeName = e.PayeeName || ""
+  const memberName = e.MemberName || ""
+  const category = e.Category || ""
+  const subCategory = e.SubCategory || ""
+  const paymentMethod = e.PaymentMethod || ""
+  const checkNum = e.CheckNumber || ""
+  const amount = e.Amount || 0
+  const description = e.Description || ""
+
+  html += `
+  <tr>
+    <td style="padding: 8px;">${payDate}</td>
+    <td style="padding: 8px;">${type}</td>
+    <td style="padding: 8px;">${payeeName}</td>
+    <td style="padding: 8px;">${memberName}</td>
+    <td style="padding: 8px;">${category}</td>
+    <td style="padding: 8px;">${subCategory}</td>
+    <td style="padding: 8px;">${paymentMethod}</td>
+    <td style="padding: 8px;">${checkNum}</td>
+    <td style="padding: 8px; text-align: right;">$${amount.toFixed(2)}</td>
+    <td style="padding: 8px;">${description}</td>
+  </tr>
+  `
+})
+
+html += `
+</tbody>
+</table>
+
+<div style="background: #f0f0f0; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 16px;">
+  <h3 style="margin-top: 0;">Total Expenses: $${totalAmount.toFixed(2)}</h3>
+  <p style="margin: 5px 0;">Total Records: ${expenses.length}</p>
+</div>
+`
+
+// Store expenses data globally for export
+window.lastExpenseReportData = expenses
+window.lastExpenseReportTitle = reportTitle
+
+document.getElementById("expenseReportContent").innerHTML = html
+
+}
+
+async function exportExpenseToExcel(){
+
+if(!window.lastExpenseReportData || window.lastExpenseReportData.length === 0){
+  alert("Please generate a report first")
+  return
+}
+
+const expenses = window.lastExpenseReportData
+const reportTitle = window.lastExpenseReportTitle || "Expense Report"
+
+// Create CSV content
+let csv = "Expense Report\n"
+csv += reportTitle + "\n"
+csv += "Generated: " + new Date().toLocaleDateString() + "\n\n"
+
+csv += "Payment Date,Type,Payee Name,Member Name,Category,SubCategory,Payment Method,Check #,Amount,Description\n"
+
+expenses.forEach(e => {
+  const payDate = e.paymentDateObj.toLocaleDateString()
+  const type = (e.Type || "").replace(/,/g, ";")
+  const payeeName = (e.PayeeName || "").replace(/,/g, ";")
+  const memberName = (e.MemberName || "").replace(/,/g, ";")
+  const category = (e.Category || "").replace(/,/g, ";")
+  const subCategory = (e.SubCategory || "").replace(/,/g, ";")
+  const paymentMethod = (e.PaymentMethod || "").replace(/,/g, ";")
+  const checkNum = (e.CheckNumber || "").replace(/,/g, ";")
+  const amount = e.Amount || 0
+  const description = (e.Description || "").replace(/,/g, ";").replace(/\n/g, " ")
+
+  csv += `"${payDate}","${type}","${payeeName}","${memberName}","${category}","${subCategory}","${paymentMethod}","${checkNum}","${amount}","${description}"\n`
+})
+
+// Add total
+csv += "\n\nTotal Expenses:," + expenses.reduce((sum, e) => sum + (e.Amount || 0), 0).toFixed(2)
+
+// Create blob and download
+const blob = new Blob([csv], {type: "text/csv"})
+const url = URL.createObjectURL(blob)
+const a = document.createElement("a")
+a.href = url
+a.download = `Expense_Report_${new Date().toISOString().split('T')[0]}.csv`
+a.click()
+URL.revokeObjectURL(url)
+
+alert("Report exported to Excel successfully!")
 
 }
 
