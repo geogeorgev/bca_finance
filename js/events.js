@@ -250,7 +250,7 @@ ${participantsList.length > 0 ? participantsList : '<tr><td colspan="9" style="t
 /* SHOW REGISTER PARTICIPANT SCREEN */
 async function showRegisterParticipant(eventId){
 
-const memberDropdown = await memberDropdown()
+const memberDropdownHtml = await memberDropdown()
 
 show(`
 
@@ -281,7 +281,7 @@ show(`
 
 <div id="memberGuardianDiv">
 <label>Guardian (Member):</label>
-${memberDropdown}
+${memberDropdownHtml}
 <p style="font-size: 12px; color: #666; margin: 5px 0;">Select guardian from member list - payment will be linked for tax reporting</p>
 </div>
 
