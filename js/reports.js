@@ -16,28 +16,209 @@ show(`
 async function collectionReport(){
 
 const currentYear = new Date().getFullYear()
-const snap = await db.collection("income").get()
+const currentDate = new Date()
+const yearStart = new Date(currentYear, 0, 1)
+const yearStartStr = yearStart.toISOString().split('T')[0]
+const currentDateStr = currentDate.toISOString().split('T')[0]
 
-let total=0
-let html="<h2>Collection Report - Year " + currentYear + "</h2>"
+show(`
 
-snap.forEach(doc=>{
+<h2>Collection Report - Year ${currentYear}</h2>
 
-const d=doc.data()
-if(!d.CollectionDate) return
-const date = new Date(d.CollectionDate)
+<div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
 
-// Only include collections for current year
-if(date.getFullYear() === currentYear){
-  total+=d.Amount
-  html+=`<div class="card">${d.MemberName} $${d.Amount}</div>`
+  <label>Report Type:</label>
+  <select id="reportType" onchange="updateReportDateFields()">
+    <option value="ytd">Year to Date (Default)</option>
+    <option value="month">Specific Month</option>
+    <option value="custom">Custom Date Range</option>
+  </select>
+
+  <br><br>
+
+  <div id="monthField" style="display:none;">
+    <label>Select Month & Year:</label>
+    <input type="month" id="monthInput" value="${currentYear}-${String(currentDate.getMonth() + 1).padStart(2, '0')}">
+  </div>
+
+  <div id="customField" style="display:none;">
+    <label>Start Date:</label>
+    <input type="date" id="startDate" value="${yearStartStr}">
+    <br><br>
+    <label>End Date:</label>
+    <input type="date" id="endDate" value="${currentDateStr}">
+  </div>
+
+  <br><br>
+
+  <button onclick="generateCollectionReport()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate Report</button>
+  <button onclick="exportCollectionToExcel()" style="padding: 8px 16px; background: #38ef7d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">📊 Export to Excel</button>
+
+</div>
+
+<div id="reportContent"></div>
+
+`)
+
 }
 
+function updateReportDateFields(){
+  const reportType = document.getElementById("reportType").value
+
+  document.getElementById("monthField").style.display = reportType === "month" ? "block" : "none"
+  document.getElementById("customField").style.display = reportType === "custom" ? "block" : "none"
+}
+
+async function generateCollectionReport(){
+
+const currentYear = new Date().getFullYear()
+const reportType = document.getElementById("reportType").value
+const snap = await db.collection("income").get()
+
+let startDate, endDate
+let reportTitle = `Collection Report - Year ${currentYear}`
+
+if(reportType === "ytd"){
+  startDate = new Date(currentYear, 0, 1)
+  endDate = new Date()
+  reportTitle = `Collection Report - Year to Date (${currentYear})`
+} else if(reportType === "month"){
+  const monthValue = document.getElementById("monthInput").value
+  const [year, month] = monthValue.split('-')
+  startDate = new Date(year, month - 1, 1)
+  endDate = new Date(year, month, 0)
+  reportTitle = `Collection Report - ${monthValue}`
+} else if(reportType === "custom"){
+  startDate = new Date(document.getElementById("startDate").value)
+  endDate = new Date(document.getElementById("endDate").value)
+  reportTitle = `Collection Report - ${document.getElementById("startDate").value} to ${document.getElementById("endDate").value}`
+}
+
+let collections = []
+let totalAmount = 0
+
+snap.forEach(doc=>{
+  const d = doc.data()
+  if(!d.CollectionDate) return
+
+  const collectionDate = new Date(d.CollectionDate)
+
+  if(collectionDate >= startDate && collectionDate <= endDate){
+    collections.push({
+      ...d,
+      collectionDateObj: collectionDate
+    })
+    totalAmount += d.Amount || 0
+  }
 })
 
-html+=`<h3>Total $${total.toFixed(2)}</h3>`
+// Sort by date descending
+collections.sort((a, b) => b.collectionDateObj - a.collectionDateObj)
 
-show(html)
+let html = `
+<h3>${reportTitle}</h3>
+
+<table border="1" width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+<thead style="background-color: #667eea; color: white;">
+<tr>
+  <th style="padding: 10px; text-align: left;">Collection Date</th>
+  <th style="padding: 10px; text-align: left;">Create Date</th>
+  <th style="padding: 10px; text-align: left;">Member Name</th>
+  <th style="padding: 10px; text-align: left;">Type</th>
+  <th style="padding: 10px; text-align: left;">Purpose</th>
+  <th style="padding: 10px; text-align: left;">Check #</th>
+  <th style="padding: 10px; text-align: right;">Amount</th>
+  <th style="padding: 10px; text-align: left;">Memo</th>
+</tr>
+</thead>
+<tbody>
+`
+
+collections.forEach(c => {
+  const collDate = c.collectionDateObj.toLocaleDateString()
+  const createDate = c.CreateDate ? (c.CreateDate.toDate ? new Date(c.CreateDate.toDate()).toLocaleDateString() : new Date(c.CreateDate).toLocaleDateString()) : ""
+  const memberName = c.MemberName || "N/A"
+  const type = c.Type || ""
+  const purpose = c.Purpose || ""
+  const checkNum = c.CheckNumber || ""
+  const amount = c.Amount || 0
+  const memo = c.Memo || ""
+
+  html += `
+  <tr>
+    <td style="padding: 8px;">${collDate}</td>
+    <td style="padding: 8px;">${createDate}</td>
+    <td style="padding: 8px;">${memberName}</td>
+    <td style="padding: 8px;">${type}</td>
+    <td style="padding: 8px;">${purpose}</td>
+    <td style="padding: 8px;">${checkNum}</td>
+    <td style="padding: 8px; text-align: right;">$${amount.toFixed(2)}</td>
+    <td style="padding: 8px;">${memo}</td>
+  </tr>
+  `
+})
+
+html += `
+</tbody>
+</table>
+
+<div style="background: #f0f0f0; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 16px;">
+  <h3 style="margin-top: 0;">Total Collections: $${totalAmount.toFixed(2)}</h3>
+  <p style="margin: 5px 0;">Total Records: ${collections.length}</p>
+</div>
+`
+
+// Store collections data globally for export
+window.lastCollectionReportData = collections
+window.lastCollectionReportTitle = reportTitle
+
+document.getElementById("reportContent").innerHTML = html
+
+}
+
+async function exportCollectionToExcel(){
+
+if(!window.lastCollectionReportData || window.lastCollectionReportData.length === 0){
+  alert("Please generate a report first")
+  return
+}
+
+const collections = window.lastCollectionReportData
+const reportTitle = window.lastCollectionReportTitle || "Collection Report"
+
+// Create CSV content
+let csv = "Collection Report\n"
+csv += reportTitle + "\n"
+csv += "Generated: " + new Date().toLocaleDateString() + "\n\n"
+
+csv += "Collection Date,Create Date,Member Name,Type,Purpose,Check #,Amount,Memo\n"
+
+collections.forEach(c => {
+  const collDate = c.collectionDateObj.toLocaleDateString()
+  const createDate = c.CreateDate ? (c.CreateDate.toDate ? new Date(c.CreateDate.toDate()).toLocaleDateString() : new Date(c.CreateDate).toLocaleDateString()) : ""
+  const memberName = (c.MemberName || "N/A").replace(/,/g, ";")
+  const type = (c.Type || "").replace(/,/g, ";")
+  const purpose = (c.Purpose || "").replace(/,/g, ";")
+  const checkNum = (c.CheckNumber || "").replace(/,/g, ";")
+  const amount = c.Amount || 0
+  const memo = (c.Memo || "").replace(/,/g, ";").replace(/\n/g, " ")
+
+  csv += `"${collDate}","${createDate}","${memberName}","${type}","${purpose}","${checkNum}","${amount}","${memo}"\n`
+})
+
+// Add total
+csv += "\n\nTotal Collections:," + collections.reduce((sum, c) => sum + (c.Amount || 0), 0).toFixed(2)
+
+// Create blob and download
+const blob = new Blob([csv], {type: "text/csv"})
+const url = URL.createObjectURL(blob)
+const a = document.createElement("a")
+a.href = url
+a.download = `Collection_Report_${new Date().toISOString().split('T')[0]}.csv`
+a.click()
+URL.revokeObjectURL(url)
+
+alert("Report exported to Excel successfully!")
 
 }
 
