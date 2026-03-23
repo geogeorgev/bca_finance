@@ -355,7 +355,6 @@ ${checkInList.length > 0 ? checkInList : '<p>No participants registered yet</p>'
 
 }
 
-}
 
 /* TOGGLE CHECK-IN STATUS */
 async function toggleCheckIn(eventId, registrationId, checkIn){
