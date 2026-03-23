@@ -241,6 +241,8 @@ ${participantsList.length > 0 ? participantsList : '<tr><td colspan="9" style="t
 
 <button onclick="loadEvents()" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Back to Events</button>
 
+<button onclick="showSyncContributionsToIncome('${eventId}')" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">💾 Sync Contributions to Income</button>
+
 `)
 
 }
@@ -282,6 +284,11 @@ show(`
 
 <br><br>
 
+<input type="checkbox" id="recordAsIncome" checked>
+<label style="display: inline;">Record Contribution as Income Entry</label>
+
+<br><br>
+
 <label>Food Coupons:</label>
 <input type="number" id="partFoodCoupons" placeholder="0" value="3" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
 
@@ -304,6 +311,7 @@ const guardian = document.getElementById("partGuardian").value
 const emergency = document.getElementById("partEmergency").value
 const contribution = Number(document.getElementById("partContribution").value) || 0
 const foodCoupons = Number(document.getElementById("partFoodCoupons").value) || 0
+const recordAsIncome = document.getElementById("recordAsIncome").checked
 
 if(!name || !phone || !guardian){
   alert("Please fill in required fields (Name, Phone, Guardian)")
@@ -312,7 +320,8 @@ if(!name || !phone || !guardian){
 
 const balance = contribution > 0 ? 0 : 0
 
-await db.collection("eventRegistrations").add({
+// Register participant in events collection
+const regDoc = await db.collection("eventRegistrations").add({
   eventId: eventId,
   name: name,
   address: address,
@@ -327,7 +336,12 @@ await db.collection("eventRegistrations").add({
   createdAt: firebase.firestore.FieldValue.serverTimestamp()
 })
 
-alert("Participant registered successfully!")
+// If checkbox is checked and contribution > 0, record as income
+if(recordAsIncome && contribution > 0){
+  await recordParticipantContributionAsIncome(eventId, name, contribution)
+}
+
+alert("Participant registered successfully!" + (recordAsIncome && contribution > 0 ? "\nContribution recorded as income." : ""))
 viewEventDetails(eventId)
 
 }
@@ -578,3 +592,129 @@ viewEventDetails(eventId)
 
 }
 
+
+/* RECORD PARTICIPANT CONTRIBUTION AS INCOME */
+
+async function recordParticipantContributionAsIncome(eventId, participantName, amount){
+
+try {
+  // Get event details
+  const eventDoc = await db.collection("events").doc(eventId).get()
+  const event = eventDoc.data()
+
+  // Generate IncomeID
+  const incomeRef = db.collection("income").doc()
+  const incomeID = incomeRef.id
+
+  // Save to income collection with event details
+  await incomeRef.set({
+    IncomeID: incomeID,
+    MemberID: "EVENT-" + eventId,
+    MemberName: participantName,
+    Purpose: "Event Contribution - " + event.name,
+    Type: "Cash",
+    CheckNumber: "",
+    Amount: amount,
+    CollectionDate: new Date().toISOString().split('T')[0],
+    Memo: "Event: " + event.name + " | Participant: " + participantName,
+    EventId: eventId,
+    ParticipantName: participantName,
+    EventName: event.name,
+    IsEventContribution: true,
+    CreateDate: firebase.firestore.FieldValue.serverTimestamp()
+  })
+
+} catch(error){
+  console.error("Error recording income: ", error)
+}
+
+}
+
+
+/* SYNC CONTRIBUTIONS TO INCOME - BATCH RECORD */
+
+async function showSyncContributionsToIncome(eventId){
+
+const eventDoc = await db.collection("events").doc(eventId).get()
+const event = eventDoc.data()
+
+const regSnap = await db.collection("eventRegistrations")
+  .where("eventId", "==", eventId)
+  .get()
+
+let unrecordedContributions = 0
+
+regSnap.forEach(doc => {
+  const p = doc.data()
+  if(p.contribution > 0){
+    unrecordedContributions++
+  }
+})
+
+show(`
+
+<h2>Sync Contributions to Income - ${event.name}</h2>
+
+<p>This will record all participant contributions as income entries in the Collection (Income) records.</p>
+
+<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107;">
+  <strong>⚠️ Note:</strong> This will create income entries for participants with contributions > $0.
+  <br>
+  <strong>Count:</strong> ${unrecordedContributions} unrecorded contributions will be synced.
+</div>
+
+<button onclick="syncAllContributionsToIncome('${eventId}')" style="padding: 8px 16px; background: #38ef7d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Sync All Contributions</button>
+
+<button onclick="viewEventDetails('${eventId}')" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+
+`)
+
+}
+
+
+/* BATCH SYNC ALL CONTRIBUTIONS */
+
+async function syncAllContributionsToIncome(eventId){
+
+if(!confirm("Are you sure you want to sync all contributions to income collection? This cannot be undone.")){
+  return
+}
+
+const eventDoc = await db.collection("events").doc(eventId).get()
+const event = eventDoc.data()
+
+const regSnap = await db.collection("eventRegistrations")
+  .where("eventId", "==", eventId)
+  .get()
+
+let syncedCount = 0
+let skippedCount = 0
+
+for(const doc of regSnap.docs){
+  const p = doc.data()
+
+  if(p.contribution > 0){
+    try {
+      // Check if already recorded
+      const incomeSnap = await db.collection("income")
+        .where("EventId", "==", eventId)
+        .where("ParticipantName", "==", p.name)
+        .get()
+
+      // Only sync if not already recorded
+      if(incomeSnap.empty){
+        await recordParticipantContributionAsIncome(eventId, p.name, p.contribution)
+        syncedCount++
+      } else {
+        skippedCount++
+      }
+    } catch(error){
+      console.error("Error syncing:", error)
+    }
+  }
+}
+
+alert(`Sync Complete!\n\nRecorded: ${syncedCount} contributions\nSkipped (already recorded): ${skippedCount}`)
+viewEventDetails(eventId)
+
+}
