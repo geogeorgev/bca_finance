@@ -248,7 +248,9 @@ ${participantsList.length > 0 ? participantsList : '<tr><td colspan="9" style="t
 }
 
 /* SHOW REGISTER PARTICIPANT SCREEN */
-function showRegisterParticipant(eventId){
+async function showRegisterParticipant(eventId){
+
+const memberDropdown = await memberDropdown()
 
 show(`
 
@@ -269,8 +271,24 @@ show(`
 
 <br><br>
 
-<label>Guardian Name:</label>
-<input id="partGuardian" placeholder="Parent/Guardian name" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+<label>Guardian Type:</label>
+<select id="guardianType" onchange="toggleGuardianField()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+  <option value="member">Member</option>
+  <option value="nonmember">Non-Member</option>
+</select>
+
+<br><br>
+
+<div id="memberGuardianDiv">
+<label>Guardian (Member):</label>
+${memberDropdown}
+<p style="font-size: 12px; color: #666; margin: 5px 0;">Select guardian from member list - payment will be linked for tax reporting</p>
+</div>
+
+<div id="nonMemberGuardianDiv" style="display:none;">
+<label>Guardian Name (Non-Member):</label>
+<input id="partGuardianNonMember" placeholder="Parent/Guardian name" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+</div>
 
 <br><br>
 
@@ -307,13 +325,27 @@ async function registerParticipant(eventId){
 const name = document.getElementById("partName").value
 const address = document.getElementById("partAddress").value
 const phone = document.getElementById("partPhone").value
-const guardian = document.getElementById("partGuardian").value
+const guardianType = document.getElementById("guardianType").value
+let guardianName = ""
+let guardianMemberId = null
+let guardianMemberName = ""
+
+if(guardianType === "member"){
+  const memberSelect = document.getElementById("memberSelect")
+  const selectedOption = memberSelect.options[memberSelect.selectedIndex]
+  guardianMemberId = memberSelect.value
+  guardianMemberName = selectedOption.text
+  guardianName = guardianMemberName
+} else {
+  guardianName = document.getElementById("partGuardianNonMember").value
+}
+
 const emergency = document.getElementById("partEmergency").value
 const contribution = Number(document.getElementById("partContribution").value) || 0
 const foodCoupons = Number(document.getElementById("partFoodCoupons").value) || 0
 const recordAsIncome = document.getElementById("recordAsIncome").checked
 
-if(!name || !phone || !guardian){
+if(!name || !phone || !guardianName){
   alert("Please fill in required fields (Name, Phone, Guardian)")
   return
 }
@@ -326,7 +358,10 @@ const regDoc = await db.collection("eventRegistrations").add({
   name: name,
   address: address,
   phone: phone,
-  guardian: guardian,
+  guardian: guardianName,
+  guardianType: guardianType,
+  guardianMemberId: guardianType === "member" ? guardianMemberId : null,
+  guardianMemberName: guardianType === "member" ? guardianMemberName : null,
   emergencyContact: emergency,
   checkedIn: false,
   contribution: contribution,
@@ -336,14 +371,43 @@ const regDoc = await db.collection("eventRegistrations").add({
   createdAt: firebase.firestore.FieldValue.serverTimestamp()
 })
 
+// If guardian is a member, update member's contribution record
+if(guardianType === "member" && guardianMemberId && contribution > 0){
+  try {
+    const memberDoc = await db.collection("members").doc(guardianMemberId).get()
+    if(memberDoc.exists){
+      const currentContribution = memberDoc.data().TotalContribution || 0
+      await db.collection("members").doc(guardianMemberId).update({
+        TotalContribution: currentContribution + contribution
+      })
+    }
+  } catch(error){
+    console.error("Error updating member contribution:", error)
+  }
+}
+
 // If checkbox is checked and contribution > 0, record as income
 if(recordAsIncome && contribution > 0){
-  await recordParticipantContributionAsIncome(eventId, name, contribution)
+  await recordParticipantContributionAsIncome(eventId, name, contribution, guardianType, guardianMemberId, guardianName)
 }
 
 alert("Participant registered successfully!" + (recordAsIncome && contribution > 0 ? "\nContribution recorded as income." : ""))
 viewEventDetails(eventId)
 
+}
+
+/* TOGGLE GUARDIAN FIELD */
+
+function toggleGuardianField(){
+  const guardianType = document.getElementById("guardianType").value
+
+  if(guardianType === "member"){
+    document.getElementById("memberGuardianDiv").style.display = "block"
+    document.getElementById("nonMemberGuardianDiv").style.display = "none"
+  } else {
+    document.getElementById("memberGuardianDiv").style.display = "none"
+    document.getElementById("nonMemberGuardianDiv").style.display = "block"
+  }
 }
 
 /* SHOW CHECK-IN SCREEN */
@@ -595,7 +659,7 @@ viewEventDetails(eventId)
 
 /* RECORD PARTICIPANT CONTRIBUTION AS INCOME */
 
-async function recordParticipantContributionAsIncome(eventId, participantName, amount){
+async function recordParticipantContributionAsIncome(eventId, participantName, amount, guardianType, guardianMemberId, guardianName){
 
 try {
   // Get event details
@@ -606,20 +670,33 @@ try {
   const incomeRef = db.collection("income").doc()
   const incomeID = incomeRef.id
 
-  // Save to income collection with event details
+  // Determine member linking for income record
+  let memberID = null
+  let memberName = null
+  if(guardianType === "member" && guardianMemberId){
+    memberID = guardianMemberId
+    memberName = guardianName
+  } else {
+    memberID = "EVENT-" + eventId
+  }
+
+  // Save to income collection with event and guardian details
   await incomeRef.set({
     IncomeID: incomeID,
-    MemberID: "EVENT-" + eventId,
-    MemberName: participantName,
+    MemberID: memberID,
+    MemberName: memberName || participantName,
     Purpose: "Event Contribution - " + event.name,
     Type: "Cash",
     CheckNumber: "",
     Amount: amount,
     CollectionDate: new Date().toISOString().split('T')[0],
-    Memo: "Event: " + event.name + " | Participant: " + participantName,
+    Memo: "Event: " + event.name + " | Participant: " + participantName + " | Guardian: " + guardianName,
     EventId: eventId,
     ParticipantName: participantName,
     EventName: event.name,
+    GuardianType: guardianType,
+    GuardianMemberId: guardianType === "member" ? guardianMemberId : null,
+    GuardianName: guardianName,
     IsEventContribution: true,
     CreateDate: firebase.firestore.FieldValue.serverTimestamp()
   })
@@ -703,7 +780,14 @@ for(const doc of regSnap.docs){
 
       // Only sync if not already recorded
       if(incomeSnap.empty){
-        await recordParticipantContributionAsIncome(eventId, p.name, p.contribution)
+        await recordParticipantContributionAsIncome(
+          eventId,
+          p.name,
+          p.contribution,
+          p.guardianType || "nonmember",
+          p.guardianMemberId || null,
+          p.guardian || "Unknown"
+        )
         syncedCount++
       } else {
         skippedCount++
