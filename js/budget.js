@@ -50,11 +50,13 @@ for (const year of sortedYears) {
   <thead>
   <tr>
   <th>BudgetID</th>
+  <th>Status</th>
   <th>Category</th>
   <th>SubCategory</th>
   <th>BudgetAmount</th>
   <th>Spent</th>
   <th>Balance</th>
+  <th>Actions</th>
   </tr>
   </thead>
   <tbody>
@@ -77,6 +79,8 @@ for (const year of sortedYears) {
       const budgetAmount = b.BudgetAmount || 0
       const spent = b.Spent || 0
       const balance = b.Balance || (budgetAmount - spent)
+      const status = b.BudgetStatus || "Inactive"
+      const docId = b.id
 
       categoryBudgetTotal += budgetAmount
       categorySpentTotal += spent
@@ -85,11 +89,17 @@ for (const year of sortedYears) {
       tableHtml += `
       <tr>
         <td>${b.BudgetID || ""}</td>
+        <td style="font-weight: bold; color: ${status === 'Active' ? 'green' : 'red'}">${status}</td>
         <td>${b.Category}</td>
         <td>${b.SubCategory}</td>
         <td>${budgetAmount}</td>
         <td>${spent}</td>
         <td>${balance}</td>
+        <td>
+          <button onclick="toggleBudgetStatus('${docId}', '${status}')">
+            ${status === 'Active' ? 'Deactivate' : 'Activate'}
+          </button>
+        </td>
       </tr>
       `
     })
@@ -97,11 +107,12 @@ for (const year of sortedYears) {
     // Add category summary row
     tableHtml += `
     <tr style="background-color: #e8e8e8; font-weight: bold;">
-      <td colspan="2">${category} TOTAL</td>
+      <td colspan="3">${category} TOTAL</td>
       <td></td>
       <td>${categoryBudgetTotal}</td>
       <td>${categorySpentTotal}</td>
       <td>${categoryBalanceTotal}</td>
+      <td></td>
     </tr>
     `
 
@@ -113,11 +124,12 @@ for (const year of sortedYears) {
   // Add year grand total row
   tableHtml += `
   <tr style="background-color: #d4d4d4; font-weight: bold; font-size: 14px;">
-    <td colspan="2">GRAND TOTAL (${year})</td>
+    <td colspan="3">GRAND TOTAL (${year})</td>
     <td></td>
     <td>${yearBudgetTotal}</td>
     <td>${yearSpentTotal}</td>
     <td>${yearBalanceTotal}</td>
+    <td></td>
   </tr>
   </tbody>
   </table>
@@ -153,6 +165,12 @@ SubCategory<br>
 Budget Amount<br>
 <input id="amount" type="number"><br><br>
 
+BudgetStatus<br>
+<select id="budgetStatus">
+  <option value="Inactive">Inactive</option>
+  <option value="Active">Active</option>
+</select><br><br>
+
 <button onclick="addBudget()">Save Budget</button>
 
 <button onclick="loadBudget()">Cancel</button>
@@ -185,7 +203,10 @@ BudgetAmount: amount,
 
 Spent:0,
 
-Balance:amount
+Balance:amount,
+
+BudgetStatus:
+document.getElementById("budgetStatus").value
 
 })
 
@@ -219,5 +240,24 @@ ${tablesHtml}
 `)
 
 win.print()
+
+}
+
+
+
+/* TOGGLE BUDGET STATUS */
+
+async function toggleBudgetStatus(docId, currentStatus){
+
+const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active'
+
+if(confirm(`Are you sure you want to ${newStatus === 'Active' ? 'activate' : 'deactivate'} this budget?`)){
+  await db.collection("budget").doc(docId).update({
+    BudgetStatus: newStatus
+  })
+
+  alert(`Budget ${newStatus === 'Active' ? 'activated' : 'deactivated'}`)
+  loadBudget()
+}
 
 }
