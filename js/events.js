@@ -305,7 +305,6 @@ const event = eventDoc.data()
 
 const regSnap = await db.collection("eventRegistrations")
   .where("eventId", "==", eventId)
-  .orderBy("createdAt")
   .get()
 
 let checkInList = ""
@@ -353,6 +352,8 @@ ${checkInList.length > 0 ? checkInList : '<p>No participants registered yet</p>'
 <button onclick="loadEvents()" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Back to Events</button>
 
 `)
+
+}
 
 }
 
