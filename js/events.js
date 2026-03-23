@@ -147,8 +147,12 @@ let totalBalance = 0
 regSnap.forEach(doc => {
   const p = doc.data()
   if(p.checkedIn) checkedInCount++
-  totalContribution += p.contribution || 0
-  totalBalance += p.balance || 0
+
+  const contribution = p.contribution || 0
+  const calculatedBalance = event.fee - contribution
+
+  totalContribution += contribution
+  totalBalance += calculatedBalance
 
   const checkedInBadge = p.checkedIn ? '✅' : '❌'
   const badgePrintedBadge = p.badgePrinted ? '🖨️' : '❌'
@@ -160,8 +164,8 @@ regSnap.forEach(doc => {
     <td style="padding: 8px;">${p.guardian}</td>
     <td style="padding: 8px; text-align: center;">${checkedInBadge}</td>
     <td style="padding: 8px; text-align: center;">${badgePrintedBadge}</td>
-    <td style="padding: 8px; text-align: right;">$${p.contribution || 0}</td>
-    <td style="padding: 8px; text-align: right;">$${p.balance || 0}</td>
+    <td style="padding: 8px; text-align: right;">$${contribution.toFixed(2)}</td>
+    <td style="padding: 8px; text-align: right;">$${calculatedBalance.toFixed(2)}</td>
     <td style="padding: 8px; text-align: center;">${p.foodCoupons || 0}</td>
     <td style="padding: 8px;">
       <button onclick="editParticipant('${eventId}', '${doc.id}')" style="padding: 4px 8px; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Edit</button>
