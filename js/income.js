@@ -62,6 +62,11 @@ ${members}
 
 <br><br>
 
+<label>Memo</label>
+<textarea id="memo" placeholder="Enter memo or notes" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px; font-family:Arial;" rows="3"></textarea>
+
+<br><br>
+
 <button onclick="addIncome()">Save Collection</button>
 
 `)
@@ -146,6 +151,9 @@ Number(document.getElementById("amount").value)
 const collectionDate =
 document.getElementById("collectionDate").value
 
+const memo =
+document.getElementById("memo").value
+
 
 /* Generate IncomeID */
 
@@ -173,6 +181,8 @@ Amount: amount,
 
 //CollectionDate: new Date(collectionDate),
 CollectionDate: collectionDate,
+
+Memo: memo,
 
 //CreateDate: new Date()
 CreateDate: firebase.firestore.FieldValue.serverTimestamp()
