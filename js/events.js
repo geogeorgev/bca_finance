@@ -142,11 +142,13 @@ const regSnap = await db.collection("eventRegistrations")
 let participantsList = ""
 let checkedInCount = 0
 let totalContribution = 0
+let totalBalance = 0
 
 regSnap.forEach(doc => {
   const p = doc.data()
   if(p.checkedIn) checkedInCount++
   totalContribution += p.contribution || 0
+  totalBalance += p.balance || 0
 
   const checkedInBadge = p.checkedIn ? '✅' : '❌'
   const badgePrintedBadge = p.badgePrinted ? '🖨️' : '❌'
@@ -168,17 +170,46 @@ regSnap.forEach(doc => {
   `
 })
 
+const checkedInPercentage = regSnap.size > 0 ? Math.round((checkedInCount / regSnap.size) * 100) : 0
+
 show(`
 
-<h2>${event.name} - Participants</h2>
+<h2>${event.name} - Event Dashboard</h2>
 
-<div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
-  <h3 style="margin: 0 0 10px 0;">Event Summary</h3>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <p style="margin: 0; font-size: 12px; opacity: 0.9; text-transform: uppercase;">Total Registrations</p>
+    <h3 style="margin: 10px 0 0 0; font-size: 32px;">${regSnap.size}</h3>
+    <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">participants</p>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <p style="margin: 0; font-size: 12px; opacity: 0.9; text-transform: uppercase;">Checked In</p>
+    <h3 style="margin: 10px 0 0 0; font-size: 32px;">${checkedInCount}/${regSnap.size}</h3>
+    <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">${checkedInPercentage}% complete</p>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <p style="margin: 0; font-size: 12px; opacity: 0.9; text-transform: uppercase;">Total Collected</p>
+    <h3 style="margin: 10px 0 0 0; font-size: 32px;">$${totalContribution.toFixed(2)}</h3>
+    <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">received</p>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <p style="margin: 0; font-size: 12px; opacity: 0.9; text-transform: uppercase;">Pending Balance</p>
+    <h3 style="margin: 10px 0 0 0; font-size: 32px;">$${totalBalance.toFixed(2)}</h3>
+    <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">outstanding</p>
+  </div>
+
+</div>
+
+<div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+  <h3 style="margin-top: 0;">Event Information</h3>
   <p><strong>Dates:</strong> ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}</p>
   <p><strong>Location:</strong> ${event.location}</p>
-  <p><strong>Total Participants:</strong> ${regSnap.size}</p>
-  <p><strong>Checked In:</strong> ${checkedInCount}/${regSnap.size}</p>
-  <p><strong>Total Contributions:</strong> $${totalContribution.toFixed(2)}</p>
+  <p><strong>Event Fee per Participant:</strong> $${event.fee}</p>
+  <p><strong>Expected Revenue:</strong> $${(regSnap.size * event.fee).toFixed(2)}</p>
 </div>
 
 <h3>Participants List</h3>
