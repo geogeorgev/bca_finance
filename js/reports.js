@@ -586,14 +586,8 @@ if(selectedMember === "all"){
 
 /* ADD SMALL LOGO TO PDF */
 function addSmallLogoPDF(pdf, pageWidth){
-  try {
-    // Try to add logo if file exists
-    const logoUrl = "./logo.png"
-    pdf.addImage(logoUrl, "PNG", pageWidth - 40, 10, 30, 20)
-  } catch(error){
-    // Silently fail - PDF will continue without logo
-    console.log("Logo could not be added to PDF")
-  }
+  // Logo loading disabled - file not found
+  // PDF continues without logo
 }
 
 /* GENERATE SINGLE MEMBER STATEMENT */
@@ -639,10 +633,10 @@ const pageWidth = pdf.internal.pageSize.getWidth()
 const pageHeight = pdf.internal.pageSize.getHeight()
 let yPosition = 20
 
-// Add small logo to top right
-addSmallLogoPDF(pdf, pageWidth)
+// Add small logo to top right (commented out - logo file not available)
+// addSmallLogoPDF(pdf, pageWidth)
 
-yPosition = 30
+yPosition = 20
 
 // Header - Boston Christian Assembly
 pdf.setFontSize(16)
@@ -705,7 +699,6 @@ pdf.setFontSize(9)
 pdf.setFont(undefined, "bold")
 
 const columnX = [20, 60, 100, 150]
-const headers = ["Date", "Purpose", "Amount", ""]
 
 pdf.text("Date", columnX[0], yPosition)
 pdf.text("Purpose", columnX[1], yPosition)
@@ -741,13 +734,11 @@ pdf.text("Treasurer", 20, pageHeight - 15)
 pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
 
 // Right footer
-const rightTreasurerText = "Pastor"
-const rightChurchText = "Boston Christian Assembly"
-const rightTreasurerWidth = pdf.getStringUnitWidth(rightTreasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
-const rightChurchWidth = pdf.getStringUnitWidth(rightChurchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+const treasurerX = pageWidth - 20
+const churchX = pageWidth - 20
 
-pdf.text(rightTreasurerText, pageWidth - 20 - rightTreasurerWidth, pageHeight - 15)
-pdf.text(rightChurchText, pageWidth - 20 - rightChurchWidth, pageHeight - 10)
+pdf.text("Pastor", treasurerX, pageHeight - 15, { align: "right" })
+pdf.text("Boston Christian Assembly", churchX, pageHeight - 10, { align: "right" })
 
 // Save PDF
 pdf.save(`${member.Name}_Contribution_Statement_${taxYear}.pdf`)
@@ -818,10 +809,10 @@ for(const member of activeMembers){
   const pageHeight = pdf.internal.pageSize.getHeight()
   let yPosition = 20
 
-  // Add small logo to top right
-  addSmallLogoPDF(pdf, pageWidth)
+  // Add small logo to top right (commented out - logo file not available)
+  // addSmallLogoPDF(pdf, pageWidth)
 
-  yPosition = 30
+  yPosition = 20
 
   // Header - Boston Christian Assembly
   pdf.setFontSize(16)
@@ -917,13 +908,11 @@ for(const member of activeMembers){
   pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
 
   // Right footer
-  const rightTreasurerText = "Pastor"
-  const rightChurchText = "Boston Christian Assembly"
-  const rightTreasurerWidth = pdf.getStringUnitWidth(rightTreasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
-  const rightChurchWidth = pdf.getStringUnitWidth(rightChurchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+  const treasurerX = pageWidth - 20
+  const churchX = pageWidth - 20
 
-  pdf.text(rightTreasurerText, pageWidth - 20 - rightTreasurerWidth, pageHeight - 15)
-  pdf.text(rightChurchText, pageWidth - 20 - rightChurchWidth, pageHeight - 10)
+  pdf.text("Pastor", treasurerX, pageHeight - 15, { align: "right" })
+  pdf.text("Boston Christian Assembly", churchX, pageHeight - 10, { align: "right" })
 
   // Save PDF
   pdf.save(`${memberData.Name}_Contribution_Statement_${taxYear}.pdf`)
