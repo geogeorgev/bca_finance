@@ -232,23 +232,49 @@ let receiptFileName = null
 
 if(receiptFile){
   try {
+    // Check if Firebase Storage is initialized
+    if(!firebase.storage){
+      throw new Error("Firebase Storage not initialized")
+    }
+
     // Create unique filename with timestamp
     const timestamp = Date.now()
     const fileName = `${timestamp}_${receiptFile.name}`
     const storagePath = `receipts/${budgetYear}/${fileName}`
 
+    console.log("Starting receipt upload:", storagePath)
+
     // Upload to Firebase Storage
     const storageRef = firebase.storage().ref(storagePath)
-    const uploadTask = await storageRef.put(receiptFile)
+    const uploadTask = storageRef.put(receiptFile)
+
+    // Wait for upload to complete
+    const snapshot = await uploadTask
 
     // Get download URL
-    receiptUrl = await uploadTask.ref.getDownloadURL()
+    receiptUrl = await snapshot.ref.getDownloadURL()
     receiptFileName = receiptFile.name
 
     console.log("Receipt uploaded successfully:", receiptUrl)
   } catch(error){
-    console.error("Error uploading receipt:", error)
-    alert("Failed to upload receipt. Expense will be saved without receipt.")
+    console.error("Error uploading receipt:", error.message)
+    console.error("Full error:", error)
+
+    // Log more details to help troubleshoot
+    if(error.code){
+      console.error("Error code:", error.code)
+    }
+
+    // Show more detailed error to user
+    if(error.code === "storage/unauthorized"){
+      alert("Storage permission denied. Contact administrator.")
+    } else if(error.code === "storage/unknown"){
+      alert("Storage error. Please try again.")
+    } else if(error.message === "Firebase Storage not initialized"){
+      alert("Storage not configured. Expense saved without receipt.")
+    } else {
+      alert("Failed to upload receipt. Expense will be saved without receipt.")
+    }
   }
 }
 
