@@ -32,6 +32,8 @@ ${members}
 <option value="Offering-Common">Offering - Common</option>
 <option value="Offering-Individual">Offering - Individual</option>
 <option value="Special Donation">Special Donation</option>
+<option value="PayPal">PayPal</option>
+<option value="Stripe">Stripe</option>
 </select>
 
 <br><br>
@@ -40,6 +42,8 @@ ${members}
 <select id="type" onchange="toggleCheck()">
 <option value="Cash">Cash</option>
 <option value="Check">Check</option>
+<option value="PayPal">PayPal</option>
+<option value="Stripe">Stripe</option>
 </select>
 
 <br><br>
