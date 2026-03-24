@@ -562,7 +562,12 @@ showCheckIn(eventId)
 }
 
 /* PRINT BADGE */
-function printBadge(eventId, registrationId, participantName){
+async function printBadge(eventId, registrationId, participantName){
+
+// Get event name
+const eventDoc = await db.collection("events").doc(eventId).get()
+const event = eventDoc.data()
+const eventName = event.name
 
 const badge = `
 <html>
@@ -571,7 +576,7 @@ const badge = `
   <style>
     body {
       margin: 0;
-      padding: 20px;
+      padding: 10px;
       font-family: Arial, sans-serif;
       display: flex;
       justify-content: center;
@@ -581,48 +586,59 @@ const badge = `
     }
 
     .badge {
-      width: 4in;
-      height: 3in;
-      border: 2px solid #667eea;
-      border-radius: 10px;
-      padding: 20px;
+      width: 3.5in;
+      height: 2.2in;
+      border: 3px solid #667eea;
+      border-radius: 8px;
+      padding: 15px;
       background: white;
       text-align: center;
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      box-sizing: border-box;
     }
 
-    .badge h1 {
-      margin: 10px 0;
-      font-size: 24px;
+    .badge .event-name {
+      font-size: 12px;
       color: #667eea;
-    }
-
-    .badge p {
-      margin: 5px 0;
-      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .badge .name {
       font-weight: bold;
-      font-size: 20px;
+      font-size: 28px;
       color: #333;
-      margin: 20px 0;
+      margin: 10px 0;
+      line-height: 1.2;
     }
 
     .badge .footer {
-      font-size: 12px;
-      color: #999;
+      font-size: 11px;
+      color: #666;
+      border-top: 1px solid #ddd;
+      padding-top: 5px;
+    }
+
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .badge {
+        box-shadow: none;
+        border: 2px solid #667eea;
+      }
     }
   </style>
 </head>
 <body>
   <div class="badge">
-    <div>
-      <h1>EVENT BADGE</h1>
-    </div>
+    <div class="event-name">${eventName}</div>
     <div class="name">${participantName}</div>
     <div class="footer">
       <p>${new Date().toLocaleDateString()}</p>
@@ -632,7 +648,7 @@ const badge = `
 </html>
 `
 
-const win = window.open("", "", "width=600,height=500")
+const win = window.open("", "", "width=600,height=400")
 win.document.write(badge)
 win.focus()
 win.print()
