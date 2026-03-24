@@ -584,6 +584,17 @@ if(selectedMember === "all"){
 
 }
 
+/* ADD SMALL LOGO TO PDF */
+function addSmallLogoPDF(pdf, pageWidth){
+  try {
+    // Add small logo to top right (50x20 mm)
+    const logoUrl = "/logo.png"
+    pdf.addImage(logoUrl, "PNG", pageWidth - 40, 10, 30, 20)
+  } catch(error){
+    console.log("Logo could not be added to PDF:", error)
+  }
+}
+
 /* GENERATE SINGLE MEMBER STATEMENT */
 async function generateSingleMemberStatement(memberId, taxYear){
 
