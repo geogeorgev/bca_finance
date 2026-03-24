@@ -644,13 +644,20 @@ addSmallLogoPDF(pdf, pageWidth)
 yPosition = 30
 
 // Header - Boston Christian Assembly
-pdf.setFontSize(14)
+pdf.setFontSize(16)
+pdf.setFont(undefined, "bold")
+pdf.text("Boston Christian Assembly", pageWidth / 2, yPosition, { align: "center" })
+
+yPosition += 8
+
+pdf.setFontSize(12)
 pdf.setFont(undefined, "bold")
 pdf.text("ANNUAL CONTRIBUTION STATEMENT", pageWidth / 2, yPosition, { align: "center" })
 
-yPosition += 10
+yPosition += 8
 
 pdf.setFontSize(10)
+pdf.setFont(undefined, "normal")
 pdf.text(`Tax Year: ${taxYear}`, pageWidth / 2, yPosition, { align: "center" })
 
 yPosition += 15
@@ -700,7 +707,7 @@ const columnX = [20, 60, 100, 150]
 const headers = ["Date", "Purpose", "Amount", ""]
 
 pdf.text("Date", columnX[0], yPosition)
-pdf.text("Purpose", columnX[1], yPosition)
+//pdf.text("Purpose", columnX[1], yPosition)
 pdf.text("Amount", columnX[2], yPosition)
 
 yPosition += 8
@@ -730,11 +737,11 @@ pdf.setFontSize(9)
 
 // Left footer
 pdf.text("Treasurer", 20, pageHeight - 15)
-pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
+//pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
 
 // Right footer
 const treasurerText = "Pastor"
-const churchText = "Boston Christian Assembly"
+//const churchText = "Boston Christian Assembly"
 const treasurerWidth = pdf.getStringUnitWidth(treasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
 const churchWidth = pdf.getStringUnitWidth(churchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
 
@@ -816,13 +823,20 @@ for(const member of activeMembers){
   yPosition = 30
 
   // Header - Boston Christian Assembly
-  pdf.setFontSize(14)
+  pdf.setFontSize(16)
+  pdf.setFont(undefined, "bold")
+  pdf.text("Boston Christian Assembly", pageWidth / 2, yPosition, { align: "center" })
+
+  yPosition += 8
+
+  pdf.setFontSize(12)
   pdf.setFont(undefined, "bold")
   pdf.text("ANNUAL CONTRIBUTION STATEMENT", pageWidth / 2, yPosition, { align: "center" })
 
-  yPosition += 10
+  yPosition += 8
 
   pdf.setFontSize(10)
+  pdf.setFont(undefined, "normal")
   pdf.text(`Tax Year: ${taxYear}`, pageWidth / 2, yPosition, { align: "center" })
 
   yPosition += 15
