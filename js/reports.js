@@ -627,13 +627,14 @@ const pageWidth = pdf.internal.pageSize.getWidth()
 const pageHeight = pdf.internal.pageSize.getHeight()
 let yPosition = 20
 
-// Add logo
-addLogoPDF(pdf, pageWidth)
+// Add small logo to top right
+addSmallLogoPDF(pdf, pageWidth)
 
-yPosition = 50
+yPosition = 30
 
-// Header
-pdf.setFontSize(16)
+// Header - Boston Christian Assembly
+pdf.setFontSize(14)
+pdf.setFont(undefined, "bold")
 pdf.text("ANNUAL CONTRIBUTION STATEMENT", pageWidth / 2, yPosition, { align: "center" })
 
 yPosition += 10
@@ -643,21 +644,15 @@ pdf.text(`Tax Year: ${taxYear}`, pageWidth / 2, yPosition, { align: "center" })
 
 yPosition += 15
 
-// Member Information
-pdf.setFontSize(11)
-pdf.setFont(undefined, "bold")
-pdf.text("Member Information", 20, yPosition)
-
-yPosition += 8
-
+// Member Information - simplified (no label)
 pdf.setFont(undefined, "normal")
 pdf.setFontSize(10)
 
-pdf.text(`Name: ${member.Name}`, 20, yPosition)
+pdf.text(`${member.Name}`, 20, yPosition)
 yPosition += 7
 
 if(member.Address1){
-  pdf.text(`Address: ${member.Address1}`, 20, yPosition)
+  pdf.text(`${member.Address1}`, 20, yPosition)
   yPosition += 7
 }
 
@@ -668,16 +663,6 @@ if(member.Address2){
 
 if(member.Address3){
   pdf.text(`${member.Address3}`, 20, yPosition)
-  yPosition += 7
-}
-
-if(member.Email){
-  pdf.text(`Email: ${member.Email}`, 20, yPosition)
-  yPosition += 7
-}
-
-if(member.Phone){
-  pdf.text(`Phone: ${member.Phone}`, 20, yPosition)
   yPosition += 7
 }
 
@@ -713,7 +698,7 @@ pdf.setFont(undefined, "normal")
 
 contributions.forEach(contribution => {
 
-  if(yPosition > pageHeight - 30){
+  if(yPosition > pageHeight - 40){
     pdf.addPage()
     yPosition = 20
   }
@@ -728,16 +713,22 @@ contributions.forEach(contribution => {
   yPosition += 7
 })
 
-yPosition += 5
-
 // Footer
-pdf.setFont(undefined, "italic")
+pdf.setFont(undefined, "normal")
 pdf.setFontSize(9)
-pdf.text("This statement is provided for tax return purposes.", 20, yPosition)
 
-yPosition += 5
+// Left footer
+pdf.text("Treasurer", 20, pageHeight - 15)
+pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
 
-pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, yPosition)
+// Right footer
+const treasurerText = "Pastor"
+const churchText = "Boston Christian Assembly"
+const treasurerWidth = pdf.getStringUnitWidth(treasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+const churchWidth = pdf.getStringUnitWidth(churchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+
+pdf.text(treasurerText, pageWidth - 20 - treasurerWidth, pageHeight - 15)
+pdf.text(churchText, pageWidth - 20 - churchWidth, pageHeight - 10)
 
 // Save PDF
 pdf.save(`${member.Name}_Contribution_Statement_${taxYear}.pdf`)
@@ -808,13 +799,14 @@ for(const member of activeMembers){
   const pageHeight = pdf.internal.pageSize.getHeight()
   let yPosition = 20
 
-  // Add logo
-  addLogoPDF(pdf, pageWidth)
+  // Add small logo to top right
+  addSmallLogoPDF(pdf, pageWidth)
 
-  yPosition = 50
+  yPosition = 30
 
-  // Header
-  pdf.setFontSize(16)
+  // Header - Boston Christian Assembly
+  pdf.setFontSize(14)
+  pdf.setFont(undefined, "bold")
   pdf.text("ANNUAL CONTRIBUTION STATEMENT", pageWidth / 2, yPosition, { align: "center" })
 
   yPosition += 10
@@ -824,21 +816,15 @@ for(const member of activeMembers){
 
   yPosition += 15
 
-  // Member Information
-  pdf.setFontSize(11)
-  pdf.setFont(undefined, "bold")
-  pdf.text("Member Information", 20, yPosition)
-
-  yPosition += 8
-
+  // Member Information - simplified (no label)
   pdf.setFont(undefined, "normal")
   pdf.setFontSize(10)
 
-  pdf.text(`Name: ${memberData.Name}`, 20, yPosition)
+  pdf.text(`${memberData.Name}`, 20, yPosition)
   yPosition += 7
 
   if(memberData.Address1){
-    pdf.text(`Address: ${memberData.Address1}`, 20, yPosition)
+    pdf.text(`${memberData.Address1}`, 20, yPosition)
     yPosition += 7
   }
 
@@ -849,16 +835,6 @@ for(const member of activeMembers){
 
   if(memberData.Address3){
     pdf.text(`${memberData.Address3}`, 20, yPosition)
-    yPosition += 7
-  }
-
-  if(memberData.Email){
-    pdf.text(`Email: ${memberData.Email}`, 20, yPosition)
-    yPosition += 7
-  }
-
-  if(memberData.Phone){
-    pdf.text(`Phone: ${memberData.Phone}`, 20, yPosition)
     yPosition += 7
   }
 
@@ -891,7 +867,7 @@ for(const member of activeMembers){
 
   contributions.forEach(contribution => {
 
-    if(yPosition > pageHeight - 30){
+    if(yPosition > pageHeight - 40){
       pdf.addPage()
       yPosition = 20
     }
@@ -906,16 +882,22 @@ for(const member of activeMembers){
     yPosition += 7
   })
 
-  yPosition += 5
-
   // Footer
-  pdf.setFont(undefined, "italic")
+  pdf.setFont(undefined, "normal")
   pdf.setFontSize(9)
-  pdf.text("This statement is provided for tax return purposes.", 20, yPosition)
 
-  yPosition += 5
+  // Left footer
+  pdf.text("Treasurer", 20, pageHeight - 15)
+  pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
 
-  pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, yPosition)
+  // Right footer
+  const treasurerText = "Pastor"
+  const churchText = "Boston Christian Assembly"
+  const treasurerWidth = pdf.getStringUnitWidth(treasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+  const churchWidth = pdf.getStringUnitWidth(churchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+
+  pdf.text(treasurerText, pageWidth - 20 - treasurerWidth, pageHeight - 15)
+  pdf.text(churchText, pageWidth - 20 - churchWidth, pageHeight - 10)
 
   // Save PDF
   pdf.save(`${memberData.Name}_Contribution_Statement_${taxYear}.pdf`)
