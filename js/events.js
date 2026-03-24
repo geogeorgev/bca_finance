@@ -250,7 +250,14 @@ ${participantsList.length > 0 ? participantsList : '<tr><td colspan="9" style="t
 /* SHOW REGISTER PARTICIPANT SCREEN */
 async function showRegisterParticipant(eventId){
 
-const memberDropdownHtml = await memberDropdown()
+// Get members data to populate dropdown
+const membersSnap = await db.collection("members").get()
+let memberOptions = '<option value="">-- Select Member --</option>'
+
+membersSnap.forEach(doc => {
+  const member = doc.data()
+  memberOptions += `<option value="${doc.id}">${member.Name}</option>`
+})
 
 show(`
 
@@ -272,8 +279,7 @@ show(`
 <div id="memberGuardianDiv">
 <label>Guardian (Member):</label>
 <select id="memberSelect" onchange="loadMemberAddressPhone()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
-  <option value="">-- Select Member --</option>
-  ${memberDropdownHtml.replace(/<option value="">.*?<\/option>/i, '')}
+  ${memberOptions}
 </select>
 <p style="font-size: 12px; color: #666; margin: 5px 0;">Select guardian from member list - address and phone will auto-load</p>
 </div>
