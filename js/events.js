@@ -291,18 +291,8 @@ show(`
 
 <br><br>
 
-<label>Address Line 1:</label>
-<input id="partAddress1" placeholder="Street address" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
-
-<br><br>
-
-<label>Address Line 2:</label>
-<input id="partAddress2" placeholder="Apt, suite, etc." style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
-
-<br><br>
-
-<label>Address Line 3:</label>
-<input id="partAddress3" placeholder="City, State, Zip" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+<label>Address:</label>
+<input id="partAddress" placeholder="Street address" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
 
 <br><br>
 
@@ -342,9 +332,7 @@ show(`
 async function registerParticipant(eventId){
 
 const name = document.getElementById("partName").value
-const address1 = document.getElementById("partAddress1").value
-const address2 = document.getElementById("partAddress2").value
-const address3 = document.getElementById("partAddress3").value
+const address = document.getElementById("partAddress").value
 const phone = document.getElementById("partPhone").value
 const guardianType = document.getElementById("guardianType").value
 let guardianName = ""
@@ -377,9 +365,7 @@ const balance = contribution > 0 ? 0 : 0
 const regDoc = await db.collection("eventRegistrations").add({
   eventId: eventId,
   name: name,
-  address1: address1,
-  address2: address2,
-  address3: address3,
+  address: address,
   phone: phone,
   guardian: guardianName,
   guardianType: guardianType,
@@ -431,9 +417,7 @@ function toggleGuardianFieldAndLoadData(){
     document.getElementById("memberGuardianDiv").style.display = "none"
     document.getElementById("nonMemberGuardianDiv").style.display = "block"
     // Clear address and phone when switching to non-member
-    document.getElementById("partAddress1").value = ""
-    document.getElementById("partAddress2").value = ""
-    document.getElementById("partAddress3").value = ""
+    document.getElementById("partAddress").value = ""
     document.getElementById("partPhone").value = ""
   }
 }
@@ -445,9 +429,7 @@ async function loadMemberAddressPhone(){
   const memberId = memberSelect.value
 
   if(!memberId){
-    document.getElementById("partAddress1").value = ""
-    document.getElementById("partAddress2").value = ""
-    document.getElementById("partAddress3").value = ""
+    document.getElementById("partAddress").value = ""
     document.getElementById("partPhone").value = ""
     return
   }
@@ -456,9 +438,19 @@ async function loadMemberAddressPhone(){
     const memberDoc = await db.collection("members").doc(memberId).get()
     if(memberDoc.exists){
       const memberData = memberDoc.data()
-      document.getElementById("partAddress1").value = memberData.Address1 || ""
-      document.getElementById("partAddress2").value = memberData.Address2 || ""
-      document.getElementById("partAddress3").value = memberData.Address3 || ""
+
+      // Concatenate Address1, Address2, Address3
+      const address1 = memberData.Address1 || ""
+      const address2 = memberData.Address2 || ""
+      const address3 = memberData.Address3 || ""
+
+      // Build concatenated address
+      let concatenatedAddress = ""
+      if(address1) concatenatedAddress += address1
+      if(address2) concatenatedAddress += (concatenatedAddress ? ", " : "") + address2
+      if(address3) concatenatedAddress += (concatenatedAddress ? ", " : "") + address3
+
+      document.getElementById("partAddress").value = concatenatedAddress
       document.getElementById("partPhone").value = memberData.Phone || ""
     }
   } catch(error){
