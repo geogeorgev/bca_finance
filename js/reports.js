@@ -587,11 +587,12 @@ if(selectedMember === "all"){
 /* ADD SMALL LOGO TO PDF */
 function addSmallLogoPDF(pdf, pageWidth){
   try {
-    // Add small logo to top right (50x20 mm)
-    const logoUrl = "/logo.png"
+    // Try to add logo if file exists
+    const logoUrl = "./logo.png"
     pdf.addImage(logoUrl, "PNG", pageWidth - 40, 10, 30, 20)
   } catch(error){
-    console.log("Logo could not be added to PDF:", error)
+    // Silently fail - PDF will continue without logo
+    console.log("Logo could not be added to PDF")
   }
 }
 
@@ -740,13 +741,13 @@ pdf.text("Treasurer", 20, pageHeight - 15)
 pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
 
 // Right footer
-const treasurerText = "Pastor"
-const churchText = "Boston Christian Assembly"
-const treasurerWidth = pdf.getStringUnitWidth(treasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
-const churchWidth = pdf.getStringUnitWidth(churchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+const rightTreasurerText = "Pastor"
+const rightChurchText = "Boston Christian Assembly"
+const rightTreasurerWidth = pdf.getStringUnitWidth(rightTreasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+const rightChurchWidth = pdf.getStringUnitWidth(rightChurchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
 
-pdf.text(treasurerText, pageWidth - 20 - treasurerWidth, pageHeight - 15)
-pdf.text(churchText, pageWidth - 20 - churchWidth, pageHeight - 10)
+pdf.text(rightTreasurerText, pageWidth - 20 - rightTreasurerWidth, pageHeight - 15)
+pdf.text(rightChurchText, pageWidth - 20 - rightChurchWidth, pageHeight - 10)
 
 // Save PDF
 pdf.save(`${member.Name}_Contribution_Statement_${taxYear}.pdf`)
@@ -916,13 +917,13 @@ for(const member of activeMembers){
   pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
 
   // Right footer
-  const treasurerText = "Pastor"
-  const churchText = "Boston Christian Assembly"
-  const treasurerWidth = pdf.getStringUnitWidth(treasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
-  const churchWidth = pdf.getStringUnitWidth(churchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+  const rightTreasurerText = "Pastor"
+  const rightChurchText = "Boston Christian Assembly"
+  const rightTreasurerWidth = pdf.getStringUnitWidth(rightTreasurerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
+  const rightChurchWidth = pdf.getStringUnitWidth(rightChurchText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor
 
-  pdf.text(treasurerText, pageWidth - 20 - treasurerWidth, pageHeight - 15)
-  pdf.text(churchText, pageWidth - 20 - churchWidth, pageHeight - 10)
+  pdf.text(rightTreasurerText, pageWidth - 20 - rightTreasurerWidth, pageHeight - 15)
+  pdf.text(rightChurchText, pageWidth - 20 - rightChurchWidth, pageHeight - 10)
 
   // Save PDF
   pdf.save(`${memberData.Name}_Contribution_Statement_${taxYear}.pdf`)
