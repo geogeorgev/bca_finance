@@ -311,6 +311,20 @@ show(`
 
 <br><br>
 
+<label>Payment Method:</label>
+<select id="paymentMethod" onchange="toggleCheckNumberField()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+  <option value="cash">Cash</option>
+  <option value="check">Check</option>
+</select>
+
+<br><br>
+
+<div id="checkNumberDiv" style="display:none;">
+<label>Check Number:</label>
+<input id="checkNumber" placeholder="Check number" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+<br><br>
+</div>
+
 <input type="checkbox" id="recordAsIncome" checked>
 <label style="display: inline;">Record Contribution as Income Entry</label>
 
@@ -351,6 +365,8 @@ if(guardianType === "member"){
 
 const emergency = document.getElementById("partEmergency").value
 const contribution = Number(document.getElementById("partContribution").value) || 0
+const paymentMethod = document.getElementById("paymentMethod").value
+const checkNumber = document.getElementById("checkNumber").value || ""
 const foodCoupons = Number(document.getElementById("partFoodCoupons").value) || 0
 const recordAsIncome = document.getElementById("recordAsIncome").checked
 
@@ -374,6 +390,8 @@ const regDoc = await db.collection("eventRegistrations").add({
   emergencyContact: emergency,
   checkedIn: false,
   contribution: contribution,
+  paymentMethod: paymentMethod,
+  checkNumber: paymentMethod === "check" ? checkNumber : null,
   balance: balance,
   badgePrinted: false,
   foodCoupons: foodCoupons,
@@ -397,12 +415,25 @@ if(guardianType === "member" && guardianMemberId && contribution > 0){
 
 // If checkbox is checked and contribution > 0, record as income
 if(recordAsIncome && contribution > 0){
-  await recordParticipantContributionAsIncome(eventId, name, contribution, guardianType, guardianMemberId, guardianName)
+  await recordParticipantContributionAsIncome(eventId, guardianName, contribution, paymentMethod, checkNumber)
 }
 
 alert("Participant registered successfully!" + (recordAsIncome && contribution > 0 ? "\nContribution recorded as income." : ""))
 viewEventDetails(eventId)
 
+}
+
+/* TOGGLE CHECK NUMBER FIELD */
+
+function toggleCheckNumberField(){
+  const paymentMethod = document.getElementById("paymentMethod").value
+
+  if(paymentMethod === "check"){
+    document.getElementById("checkNumberDiv").style.display = "block"
+  } else {
+    document.getElementById("checkNumberDiv").style.display = "none"
+    document.getElementById("checkNumber").value = ""
+  }
 }
 
 /* TOGGLE GUARDIAN FIELD AND LOAD DATA */
@@ -707,7 +738,7 @@ viewEventDetails(eventId)
 
 /* RECORD PARTICIPANT CONTRIBUTION AS INCOME */
 
-async function recordParticipantContributionAsIncome(eventId, participantName, amount, guardianType, guardianMemberId, guardianName){
+async function recordParticipantContributionAsIncome(eventId, memberName, amount, paymentMethod, checkNumber){
 
 try {
   // Get event details
@@ -718,34 +749,17 @@ try {
   const incomeRef = db.collection("income").doc()
   const incomeID = incomeRef.id
 
-  // Determine member linking for income record
-  let memberID = null
-  let memberName = null
-  if(guardianType === "member" && guardianMemberId){
-    memberID = guardianMemberId
-    memberName = guardianName
-  } else {
-    memberID = "EVENT-" + eventId
-  }
-
-  // Save to income collection with event and guardian details
+  // Save to income collection as normal collection entry
   await incomeRef.set({
     IncomeID: incomeID,
-    MemberID: memberID,
-    MemberName: memberName || participantName,
-    Purpose: "Event Contribution - " + event.name,
-    Type: "Cash",
-    CheckNumber: "",
+    MemberID: "EVENT",
+    MemberName: memberName,
+    Purpose: event.name,
+    Type: paymentMethod === "check" ? "Check" : "Cash",
+    CheckNumber: paymentMethod === "check" ? checkNumber : "",
     Amount: amount,
     CollectionDate: new Date().toISOString().split('T')[0],
-    Memo: "Event: " + event.name + " | Participant: " + participantName + " | Guardian: " + guardianName,
-    EventId: eventId,
-    ParticipantName: participantName,
-    EventName: event.name,
-    GuardianType: guardianType,
-    GuardianMemberId: guardianType === "member" ? guardianMemberId : null,
-    GuardianName: guardianName,
-    IsEventContribution: true,
+    Memo: "Event Contribution",
     CreateDate: firebase.firestore.FieldValue.serverTimestamp()
   })
 
@@ -822,19 +836,19 @@ for(const doc of regSnap.docs){
     try {
       // Check if already recorded
       const incomeSnap = await db.collection("income")
-        .where("EventId", "==", eventId)
-        .where("ParticipantName", "==", p.name)
+        .where("MemberName", "==", p.guardian)
+        .where("Purpose", "==", event.name)
+        .where("Amount", "==", p.contribution)
         .get()
 
       // Only sync if not already recorded
       if(incomeSnap.empty){
         await recordParticipantContributionAsIncome(
           eventId,
-          p.name,
+          p.guardian,
           p.contribution,
-          p.guardianType || "nonmember",
-          p.guardianMemberId || null,
-          p.guardian || "Unknown"
+          p.paymentMethod || "cash",
+          p.checkNumber || ""
         )
         syncedCount++
       } else {
