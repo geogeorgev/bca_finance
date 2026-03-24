@@ -22,6 +22,7 @@ show(`
 <th>Check #</th>
 <th>Description</th>
 <th>Pay Date</th>
+<th>Receipt</th>
 </tr>
 </thead>
 
@@ -44,6 +45,10 @@ const year = paymentDate ? paymentDate.getFullYear() : null
 
 // Only show expenses for current year
 if (year === currentYear) {
+  const receiptCell = e.ReceiptUrl
+    ? `<a href="${e.ReceiptUrl}" target="_blank" style="color: #2196f3; text-decoration: none;">📎 ${e.ReceiptFileName || 'View'}</a>`
+    : '<span style="color: #ccc;">—</span>'
+
   rows+=`
 
   <tr>
@@ -65,6 +70,8 @@ if (year === currentYear) {
   <td>${e.Description || ""}</td>
 
   <td>${paymentDate ? paymentDate.toLocaleDateString() : ""}</td>
+
+  <td>${receiptCell}</td>
 
   </tr>
 
@@ -167,6 +174,10 @@ Check Number<br>
 Expense Description<br>
 <textarea id="description" placeholder="Enter expense description" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px; font-family:Arial;" rows="3"></textarea><br><br>
 
+Upload Receipt (Optional)<br>
+<input type="file" id="receiptFile" accept="image/*,.pdf" style="margin: 6px 0;"><br>
+<small style="color: #666;">Accepted: Images (JPG, PNG) or PDF files</small><br><br>
+
 <button onclick="addExpense()">Save Expense</button>
 
 <button onclick="loadExpense()">Cancel</button>
@@ -203,6 +214,7 @@ const payDate = document.getElementById("payDate").value
 const paymentMethod = document.getElementById("paymentMethod").value
 const checkNumber = document.getElementById("checkNumber").value
 const description = document.getElementById("description").value
+const receiptFile = document.getElementById("receiptFile").files[0]
 
 if(!category || !subCategory){
   alert("Please select Budget Category and SubCategory")
@@ -212,6 +224,32 @@ if(!category || !subCategory){
 if(!amount || amount <= 0){
   alert("Please enter a valid amount")
   return
+}
+
+// Upload receipt if file selected
+let receiptUrl = null
+let receiptFileName = null
+
+if(receiptFile){
+  try {
+    // Create unique filename with timestamp
+    const timestamp = Date.now()
+    const fileName = `${timestamp}_${receiptFile.name}`
+    const storagePath = `receipts/${budgetYear}/${fileName}`
+
+    // Upload to Firebase Storage
+    const storageRef = firebase.storage().ref(storagePath)
+    const uploadTask = await storageRef.put(receiptFile)
+
+    // Get download URL
+    receiptUrl = await uploadTask.ref.getDownloadURL()
+    receiptFileName = receiptFile.name
+
+    console.log("Receipt uploaded successfully:", receiptUrl)
+  } catch(error){
+    console.error("Error uploading receipt:", error)
+    alert("Failed to upload receipt. Expense will be saved without receipt.")
+  }
 }
 
 // Add expense to database
@@ -226,7 +264,10 @@ await db.collection("expense").add({
   PaymentMethod: paymentMethod,
   CheckNumber: paymentMethod === "check" ? checkNumber : null,
   Description: description,
-  BudgetYear: budgetYear
+  BudgetYear: budgetYear,
+  ReceiptUrl: receiptUrl,
+  ReceiptFileName: receiptFileName,
+  CreatedDate: new Date()
 })
 
 /* UPDATE BUDGET BALANCE */
@@ -263,7 +304,7 @@ if(!budgetSnap.empty){
   }
 }
 
-alert("Expense Saved and Budget Updated")
+alert("Expense Saved" + (receiptUrl ? " and Receipt Uploaded" : ""))
 loadExpense()
 
 }
