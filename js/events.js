@@ -261,18 +261,8 @@ show(`
 
 <br><br>
 
-<label>Address:</label>
-<input id="partAddress" placeholder="Street address" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
-
-<br><br>
-
-<label>Phone Number:</label>
-<input id="partPhone" placeholder="Phone number" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
-
-<br><br>
-
 <label>Guardian Type:</label>
-<select id="guardianType" onchange="toggleGuardianField()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+<select id="guardianType" onchange="toggleGuardianFieldAndLoadData()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
   <option value="member">Member</option>
   <option value="nonmember">Non-Member</option>
 </select>
@@ -281,14 +271,27 @@ show(`
 
 <div id="memberGuardianDiv">
 <label>Guardian (Member):</label>
-${memberDropdownHtml}
-<p style="font-size: 12px; color: #666; margin: 5px 0;">Select guardian from member list - payment will be linked for tax reporting</p>
+<select id="memberSelect" onchange="loadMemberAddressPhone()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+  <option value="">-- Select Member --</option>
+  ${memberDropdownHtml.replace(/<option value="">.*?<\/option>/i, '')}
+</select>
+<p style="font-size: 12px; color: #666; margin: 5px 0;">Select guardian from member list - address and phone will auto-load</p>
 </div>
 
 <div id="nonMemberGuardianDiv" style="display:none;">
 <label>Guardian Name (Non-Member):</label>
 <input id="partGuardianNonMember" placeholder="Parent/Guardian name" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
 </div>
+
+<br><br>
+
+<label>Address:</label>
+<input id="partAddress" placeholder="Street address" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+
+<br><br>
+
+<label>Phone Number:</label>
+<input id="partPhone" placeholder="Phone number" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
 
 <br><br>
 
@@ -396,9 +399,9 @@ viewEventDetails(eventId)
 
 }
 
-/* TOGGLE GUARDIAN FIELD */
+/* TOGGLE GUARDIAN FIELD AND LOAD DATA */
 
-function toggleGuardianField(){
+function toggleGuardianFieldAndLoadData(){
   const guardianType = document.getElementById("guardianType").value
 
   if(guardianType === "member"){
@@ -407,6 +410,33 @@ function toggleGuardianField(){
   } else {
     document.getElementById("memberGuardianDiv").style.display = "none"
     document.getElementById("nonMemberGuardianDiv").style.display = "block"
+    // Clear address and phone when switching to non-member
+    document.getElementById("partAddress").value = ""
+    document.getElementById("partPhone").value = ""
+  }
+}
+
+/* LOAD MEMBER ADDRESS AND PHONE */
+
+async function loadMemberAddressPhone(){
+  const memberSelect = document.getElementById("memberSelect")
+  const memberId = memberSelect.value
+
+  if(!memberId){
+    document.getElementById("partAddress").value = ""
+    document.getElementById("partPhone").value = ""
+    return
+  }
+
+  try {
+    const memberDoc = await db.collection("members").doc(memberId).get()
+    if(memberDoc.exists){
+      const memberData = memberDoc.data()
+      document.getElementById("partAddress").value = memberData.Address || ""
+      document.getElementById("partPhone").value = memberData.Phone || ""
+    }
+  } catch(error){
+    console.error("Error loading member data:", error)
   }
 }
 
