@@ -415,7 +415,7 @@ if(guardianType === "member" && guardianMemberId && contribution > 0){
 
 // If checkbox is checked and contribution > 0, record as income
 if(recordAsIncome && contribution > 0){
-  await recordParticipantContributionAsIncome(eventId, guardianName, contribution, paymentMethod, checkNumber)
+  await recordParticipantContributionAsIncome(eventId, guardianName, contribution, paymentMethod, checkNumber, guardianMemberId)
 }
 
 alert("Participant registered successfully!" + (recordAsIncome && contribution > 0 ? "\nContribution recorded as income." : ""))
@@ -738,7 +738,7 @@ viewEventDetails(eventId)
 
 /* RECORD PARTICIPANT CONTRIBUTION AS INCOME */
 
-async function recordParticipantContributionAsIncome(eventId, memberName, amount, paymentMethod, checkNumber){
+async function recordParticipantContributionAsIncome(eventId, memberName, amount, paymentMethod, checkNumber, guardianMemberId){
 
 try {
   // Get event details
@@ -749,10 +749,13 @@ try {
   const incomeRef = db.collection("income").doc()
   const incomeID = incomeRef.id
 
+  // Use guardianMemberId if available (member guardian), otherwise use "EVENT" (non-member)
+  const memberID = guardianMemberId || "EVENT"
+
   // Save to income collection as normal collection entry
   await incomeRef.set({
     IncomeID: incomeID,
-    MemberID: "EVENT",
+    MemberID: memberID,
     MemberName: memberName,
     Purpose: event.name,
     Type: paymentMethod === "check" ? "Check" : "Cash",
@@ -848,7 +851,8 @@ for(const doc of regSnap.docs){
           p.guardian,
           p.contribution,
           p.paymentMethod || "cash",
-          p.checkNumber || ""
+          p.checkNumber || "",
+          p.guardianMemberId || null
         )
         syncedCount++
       } else {
