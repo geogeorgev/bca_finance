@@ -269,115 +269,249 @@ function parsePaymentTransactions(text, gateway){
 
 const transactions = []
 
-// Remove extra whitespace
-text = text.replace(/\s+/g, " ")
+// Remove extra whitespace and normalize
+text = text.replace(/\s+/g, " ").trim()
 
+console.log("Parsing text length:", text.length)
+console.log("First 500 chars:", text.substring(0, 500))
+
+// Strategy: Look for date patterns followed by amounts
+// Handles formats like: 01/01/2026 General Offerings 1,000.00
+
+// Find all lines with potential transaction data
+const lines = text.split(/[\n;]/).filter(line => line.trim().length > 0)
+
+console.log("Total lines found:", lines.length)
+
+// Try to parse as table format (most common for statements)
+const tableTransactions = parseTableFormat(lines, text)
+if(tableTransactions.length > 0){
+  return tableTransactions
+}
+
+// Fallback: Try original Stripe/PayPal format
 if(gateway === "Stripe"){
-  // Stripe PDF parsing
-  // Look for patterns like:
-  // Name: John Doe
-  // Date: 2026-03-15
-  // Amount: $500.00
-  // Description: Tithe Offering
-
-  // Split by common Stripe delimiters
-  const lines = text.split(/[\n,;]/)
-
-  let currentTransaction = {}
-
-  for(let line of lines){
-    line = line.trim()
-
-    // Match date (MM/DD/YYYY or YYYY-MM-DD)
-    if(/\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}|\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/.test(line)){
-      if(currentTransaction.date === undefined){
-        currentTransaction.date = extractDate(line)
-      }
-    }
-
-    // Match amount ($XXX.XX)
-    if(/\$?\d+[.,]\d{2}/.test(line)){
-      if(currentTransaction.amount === undefined){
-        currentTransaction.amount = parseFloat(line.replace(/[^0-9.]/g, ""))
-      }
-    }
-
-    // Match common purpose keywords
-    if(/tithe|offering|donation|contribution|collection|fund/i.test(line)){
-      if(currentTransaction.purpose === undefined){
-        currentTransaction.purpose = line.length > 50 ? line.substring(0, 50) : line
-      }
-    }
-
-    // Match member name (capitalized words, not keywords)
-    if(/^[A-Z][a-z]+ [A-Z][a-z]+/.test(line) &&
-       !/date|amount|stripe|payment|transaction/i.test(line)){
-      if(currentTransaction.memberName === undefined){
-        currentTransaction.memberName = line
-      }
-    }
-
-    // If we have a complete transaction, add it
-    if(currentTransaction.memberName && currentTransaction.date &&
-       currentTransaction.amount && currentTransaction.purpose){
-      transactions.push(currentTransaction)
-      currentTransaction = {}
-    }
-  }
-
+  // Look for Stripe patterns
+  const stripeTransactions = parseStripeFormat(text)
+  if(stripeTransactions.length > 0) return stripeTransactions
 } else if(gateway === "PayPal"){
-  // PayPal PDF parsing
-  // Similar pattern but may have different keywords
+  // Look for PayPal patterns
+  const paypalTransactions = parsePayPalFormat(text)
+  if(paypalTransactions.length > 0) return paypalTransactions
+}
 
-  const lines = text.split(/[\n,;]/)
-  let currentTransaction = {}
+// If still no transactions, try generic date + amount pattern
+return parseGenericFormat(text)
 
-  for(let line of lines){
-    line = line.trim()
+}
 
-    // PayPal specific patterns
-    if(/date:/i.test(line) || /\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}/.test(line)){
-      if(currentTransaction.date === undefined){
-        currentTransaction.date = extractDate(line)
-      }
-    }
+/* ===============================
+   PARSE TABLE FORMAT (Most Common)
+================================ */
 
-    if(/amount:|total:|\$\d+/i.test(line) || /\$?\d+[.,]\d{2}/.test(line)){
-      if(currentTransaction.amount === undefined){
-        currentTransaction.amount = parseFloat(line.replace(/[^0-9.]/g, ""))
-      }
-    }
+function parseTableFormat(lines, fullText){
 
-    if(/item:|description:|[a-z]+ (offering|donation|tithe|fund)/i.test(line)){
-      if(currentTransaction.purpose === undefined){
-        currentTransaction.purpose = line.replace(/item:|description:|/i, "").substring(0, 50)
-      }
-    }
+const transactions = []
+let memberName = null
 
-    if(/^[A-Z][a-z]+ [A-Z][a-z]+/.test(line) &&
-       !/paypal|date|amount|transaction/i.test(line)){
-      if(currentTransaction.memberName === undefined){
-        currentTransaction.memberName = line
-      }
-    }
-
-    if(currentTransaction.memberName && currentTransaction.date &&
-       currentTransaction.amount && currentTransaction.purpose){
-      transactions.push(currentTransaction)
-      currentTransaction = {}
-    }
+// Extract member name - look for names before transaction table
+const namePattern = /^[A-Z][a-z]+ [A-Z][a-z]+/
+for(let line of lines){
+  const match = line.match(namePattern)
+  if(match){
+    memberName = match[0]
+    break
   }
 }
 
-// Clean up transactions
-return transactions.filter(t =>
-  t.memberName && t.date && t.amount && t.purpose
-).map(t => ({
-  memberName: t.memberName.trim(),
-  date: formatDate(t.date),
-  amount: Math.abs(t.amount),
-  purpose: t.purpose.trim()
-}))
+// Look for date patterns (MM/DD/YYYY or DD/MM/YYYY)
+const dateRegex = /(\d{1,2})\/(\d{1,2})\/(\d{4})/g
+const amountRegex = /(\d+,?\d*\.\d{2})/g
+
+let dateMatch
+const datePositions = []
+
+// Find all date positions
+while((dateMatch = dateRegex.exec(fullText)) !== null){
+  datePositions.push({
+    date: dateMatch[0],
+    position: dateMatch.index,
+    value: dateMatch[0]
+  })
+}
+
+console.log("Found dates:", datePositions.length)
+
+// For each date, find the next amount
+for(let i = 0; i < datePositions.length; i++){
+  const datePos = datePositions[i]
+  const nextDatePos = datePositions[i + 1] ? datePositions[i + 1].position : fullText.length
+
+  // Get text between this date and next date
+  const segment = fullText.substring(datePos.position, nextDatePos)
+
+  // Find amount in this segment
+  const amountMatch = segment.match(amountRegex)
+  if(amountMatch){
+    // Extract purpose/description from segment
+    let purpose = "General Offering"
+
+    if(segment.includes("General Offering")){
+      purpose = "General Offering"
+    } else if(segment.includes("Tithe")){
+      purpose = "Tithe"
+    } else if(segment.includes("Donation")){
+      purpose = "Donation"
+    } else if(segment.includes("Special")){
+      purpose = "Special Offering"
+    } else if(segment.includes("Building")){
+      purpose = "Building Fund"
+    } else if(segment.includes("Mission")){
+      purpose = "Mission Fund"
+    }
+
+    transactions.push({
+      memberName: memberName || "Unknown",
+      date: formatDate(datePos.value),
+      amount: parseFloat(amountMatch[0].replace(/,/g, "")),
+      purpose: purpose
+    })
+  }
+}
+
+console.log("Transactions found via table format:", transactions.length)
+return transactions
+
+}
+
+/* ===============================
+   PARSE STRIPE FORMAT
+================================ */
+
+function parseStripeFormat(text){
+
+const transactions = []
+const lines = text.split(/[\n;]/)
+
+let currentTransaction = {}
+
+for(let line of lines){
+  line = line.trim()
+
+  if(/\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}/.test(line)){
+    if(currentTransaction.date === undefined){
+      currentTransaction.date = extractDate(line)
+    }
+  }
+
+  if(/\$?\d+[.,]\d{2}/.test(line)){
+    if(currentTransaction.amount === undefined){
+      currentTransaction.amount = parseFloat(line.replace(/[^0-9.]/g, ""))
+    }
+  }
+
+  if(/tithe|offering|donation|contribution|collection|fund/i.test(line)){
+    if(currentTransaction.purpose === undefined){
+      currentTransaction.purpose = line.length > 50 ? line.substring(0, 50) : line
+    }
+  }
+
+  if(/^[A-Z][a-z]+ [A-Z][a-z]+/.test(line) &&
+     !/date|amount|stripe|payment|transaction/i.test(line)){
+    if(currentTransaction.memberName === undefined){
+      currentTransaction.memberName = line
+    }
+  }
+
+  if(currentTransaction.memberName && currentTransaction.date &&
+     currentTransaction.amount && currentTransaction.purpose){
+    transactions.push(currentTransaction)
+    currentTransaction = {}
+  }
+}
+
+return transactions
+
+}
+
+/* ===============================
+   PARSE PAYPAL FORMAT
+================================ */
+
+function parsePayPalFormat(text){
+
+const transactions = []
+const lines = text.split(/[\n;]/)
+
+let currentTransaction = {}
+
+for(let line of lines){
+  line = line.trim()
+
+  if(/date:/i.test(line) || /\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}/.test(line)){
+    if(currentTransaction.date === undefined){
+      currentTransaction.date = extractDate(line)
+    }
+  }
+
+  if(/amount:|total:|\$\d+/i.test(line) || /\$?\d+[.,]\d{2}/.test(line)){
+    if(currentTransaction.amount === undefined){
+      currentTransaction.amount = parseFloat(line.replace(/[^0-9.]/g, ""))
+    }
+  }
+
+  if(/item:|description:|[a-z]+ (offering|donation|tithe|fund)/i.test(line)){
+    if(currentTransaction.purpose === undefined){
+      currentTransaction.purpose = line.replace(/item:|description:|/i, "").substring(0, 50)
+    }
+  }
+
+  if(/^[A-Z][a-z]+ [A-Z][a-z]+/.test(line) &&
+     !/paypal|date|amount|transaction/i.test(line)){
+    if(currentTransaction.memberName === undefined){
+      currentTransaction.memberName = line
+    }
+  }
+
+  if(currentTransaction.memberName && currentTransaction.date &&
+     currentTransaction.amount && currentTransaction.purpose){
+    transactions.push(currentTransaction)
+    currentTransaction = {}
+  }
+}
+
+return transactions
+
+}
+
+/* ===============================
+   PARSE GENERIC FORMAT
+================================ */
+
+function parseGenericFormat(text){
+
+const transactions = []
+
+// Look for any date followed by amounts
+const pattern = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+([^0-9]*?)\s*([\d,]+\.\d{2})/g
+
+let match
+while((match = pattern.exec(text)) !== null){
+  const date = `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`
+  const description = match[4].trim()
+  const amount = parseFloat(match[5].replace(/,/g, ""))
+
+  transactions.push({
+    memberName: "Member",
+    date: date,
+    amount: amount,
+    purpose: description || "Offering"
+  })
+}
+
+return transactions
+
+}
 
 }
 
