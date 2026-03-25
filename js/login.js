@@ -372,6 +372,30 @@ console.log(`Logout: ${email}`)
 
 }
 
+/* LOG AUDIT EVENT */
+async function logAuditEvent(action, details = {}){
+
+try {
+  const user = getCurrentUser()
+
+  await db.collection("auditLog").add({
+    action: action,
+    userId: user ? user.userId : "anonymous",
+    userEmail: user ? user.userEmail : "anonymous",
+    userRole: user ? user.userRole : "none",
+    timestamp: new Date(),
+    details: details,
+    userAgent: navigator.userAgent
+  })
+
+  console.log("Audit logged:", action)
+} catch(error){
+  console.error("Error logging audit:", error)
+  // Don't break login if audit logging fails
+}
+
+}
+
 /* CHECK AUTH ON PAGE LOAD */
 window.addEventListener("load", function(){
 
@@ -438,13 +462,33 @@ function initializeApp(){
 const user = getCurrentUser()
 
 if(!user){
-  showLoginScreen()
+  // Check if this is first time setup (no users in system)
+  checkIfFirstTimeSetup()
   return
 }
 
 // User is logged in, show app
-// Load dashboard based on role
 loadDashboard()
 
 }
 
+/* Check if First Time Setup - Allow setup without login */
+async function checkIfFirstTimeSetup(){
+
+try {
+  const usersSnap = await db.collection("users").limit(1).get()
+
+  if(usersSnap.empty){
+    // No users exist - show setup mode
+    console.log("First time setup detected - allowing access")
+    loadDashboard() // Allow access to add first user
+  } else {
+    // Users exist - show login
+    showLoginScreen()
+  }
+} catch(error){
+  console.error("Error checking setup:", error)
+  showLoginScreen()
+}
+
+}
