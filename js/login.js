@@ -57,7 +57,7 @@ document.body.innerHTML = `
 
 }
 
-/* HANDLE LOGIN */
+/* HANDLE LOGIN - Uses Firebase Authentication */
 async function handleLogin(event){
 
 event.preventDefault()
@@ -69,60 +69,63 @@ const errorDiv = document.getElementById("loginError")
 
 errorDiv.style.display = "none"
 
-// Validate inputs
 if(!email || !password){
   showError("Please enter email and password")
   return
 }
 
 try {
-  // Query users collection by email
+  // Use Firebase Authentication
+  const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password)
+  const firebaseUser = userCredential.user
+
+  console.log("Firebase login successful:", firebaseUser.email)
+
+  // Get user role from users collection
   const userSnap = await db.collection("users")
     .where("Email", "==", email)
     .limit(1)
     .get()
 
   if(userSnap.empty){
-    logFailedLogin(email, "User not found")
-    showError("Email not found")
+    // User authenticated but no role found
+    showError("User role not configured")
     return
   }
 
-  const userDoc = userSnap.docs[0]
-  const user = userDoc.data()
-  const userId = userDoc.id
+  const userData = userSnap.docs[0].data()
+  const userId = userSnap.docs[0].id
 
-  // Check if account is active
-  if(!user.Active){
-    logFailedLogin(email, "Account inactive")
-    showError("Account disabled. Contact administrator.")
+  // Check if active
+  if(!userData.Active){
+    showError("Account is disabled")
     return
   }
 
-  // Simple password check (in production, use bcrypt)
-  // For now, we'll use a basic approach
-  if(user.Password !== password){
-    logFailedLogin(email, "Wrong password")
-    showError("Incorrect password")
-    return
-  }
+  // Create session with role info
+  createSession({
+    ...userData,
+    firebaseUID: firebaseUser.uid
+  }, userId, rememberMe)
 
-  // Login successful - create session
-  createSession(user, userId, rememberMe)
+  console.log("Login successful:", userData.Name, userData.Role)
+  logAuditEvent("LOGIN", { email: email, role: userData.Role })
 
-  // Update last login
-  await db.collection("users").doc(userId).update({
-    LastLogin: new Date()
-  })
-
-  logSuccessfulLogin(email, user.Role)
-
-  // Redirect to dashboard
-  window.location.href = "#dashboard"
+  // Reload app
+  window.location.reload()
 
 } catch(error){
   console.error("Login error:", error)
-  showError("An error occurred. Please try again.")
+
+  if(error.code === "auth/user-not-found"){
+    showError("Email not found")
+  } else if(error.code === "auth/wrong-password"){
+    showError("Incorrect password")
+  } else if(error.code === "auth/user-disabled"){
+    showError("Account disabled")
+  } else {
+    showError("Login failed: " + error.message)
+  }
 }
 
 function showError(message){
@@ -372,12 +375,19 @@ console.log(`Logout: ${email}`)
 /* CHECK AUTH ON PAGE LOAD */
 window.addEventListener("load", function(){
 
+// For initial setup, load dashboard without login
+// This allows you to create first user
+// After first user created, uncomment the check below
+
 // If on dashboard but not logged in, show login
-if(window.location.hash.includes("dashboard")){
-  if(!validateSession()){
-    showLoginScreen()
-  }
-}
+// if(window.location.hash.includes("dashboard")){
+//   if(!validateSession()){
+//     showLoginScreen()
+//   }
+// }
+
+// TEMPORARY: Allow dashboard access for initial setup
+loadDashboard()
 
 })
 

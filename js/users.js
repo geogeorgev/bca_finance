@@ -137,7 +137,14 @@ ${memberOptions}
 
 <br><br>
 
-<button onclick="addUser()" style="padding:8px 16px; background:#4caf50; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Save User</button>
+<p style="font-size:12px; color:#666; margin:15px 0;">
+<strong>Note:</strong> Password is set separately in Firebase Authentication.
+Ask admin to create Firebase Auth account with the email address above.
+</p>
+
+<br>
+
+<button onclick="addUser()" style="padding:8px 16px; background:#4caf50; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Save User (Role Only)</button>
 <button onclick="loadUsers()" style="padding:8px 16px; background:#999; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
 
 `)
@@ -175,6 +182,7 @@ if(memberId){
   memberName = memberDoc.data().Name
 }
 
+// Save user with ROLE ONLY (no password)
 await db.collection("users").add({
   Name: name,
   Email: email,
@@ -185,7 +193,7 @@ await db.collection("users").add({
   CreatedDate: new Date()
 })
 
-alert("User added successfully")
+alert("User added successfully!\n\nNEXT STEP: Ask admin to create Firebase Authentication account with email: " + email)
 loadUsers()
 
 }
