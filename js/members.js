@@ -27,7 +27,6 @@ html+=`
 
 <b>${m.Name}</b><br>
 
-MemberID: ${m.MemberID}<br>
 
 Phone: ${m.Phone || ""}<br>
 
@@ -81,8 +80,6 @@ show(`
 
 <h2>Add Member</h2>
 
-MemberID<br>
-<input id="memberID"><br><br>
 
 Name<br>
 <input id="name"><br><br>
@@ -126,8 +123,6 @@ async function addMember(){
 
 await db.collection("members").add({
 
-MemberID:
-document.getElementById("memberID").value,
 
 Name:
 document.getElementById("name").value,
@@ -175,8 +170,6 @@ show(`
 
 <h2>Edit Member</h2>
 
-MemberID (read only)<br>
-<input id="memberID" value="${m.MemberID}" disabled><br><br>
 
 Name<br>
 <input id="name" value="${m.Name}"><br><br>
