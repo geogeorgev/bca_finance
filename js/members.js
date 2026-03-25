@@ -22,15 +22,22 @@ for(const doc of snap.docs){
 
 const m = doc.data()
 
-// Check if this member has a linked user
+// Check if this member has an assigned role (user)
 const userSnap = await db.collection("users").where("MemberID", "==", doc.id).get()
-let linkedUserInfo = "No user linked"
-let linkedUserDisplay = '<span style="color: #ccc;">✗ No user linked</span>'
+let roleDisplay = '<span style="color: #ccc;">✗ No role assigned</span>'
 
 if(!userSnap.empty){
   const linkedUser = userSnap.docs[0].data()
-  linkedUserInfo = linkedUser.Email
-  linkedUserDisplay = `<span style="color: #4caf50;">✓ ${linkedUser.Email}</span><br><span style="font-size:12px; color:#666;">(${linkedUser.Role})</span>`
+  const roleColors = {
+    "Superuser": "#d32f2f",
+    "Admin": "#f57c00",
+    "Treasurer": "#388e3c",
+    "Secretary": "#1976d2",
+    "Joint Secretary": "#7b1fa2",
+    "Joint Treasurer": "#c2185b"
+  }
+  const roleColor = roleColors[linkedUser.Role] || "#666"
+  roleDisplay = `<span style="color: ${roleColor}; font-weight: bold;">✓ ${linkedUser.Role}</span>`
 }
 
 html+=`
@@ -46,13 +53,13 @@ Status: ${m.Active ? "Active":"Inactive"}<br>
 
 <br>
 
-<span style="font-size:12px; font-weight:bold;">App User:</span><br>
-${linkedUserDisplay}
+<span style="font-size:12px; font-weight:bold;">App Role:</span><br>
+${roleDisplay}
 
 <br><br>
 
 <button onclick="editMember('${doc.id}')">Edit</button>
-<button onclick="linkUserToMember('${doc.id}', '${m.Name}')" style="background:#2196f3;">🔗 Link User</button>
+<button onclick="assignRoleToMember('${doc.id}', '${m.Name}', '${m.Email}')" style="background:#2196f3;">🔐 Assign Role</button>
 
 </div>
 `
@@ -258,117 +265,133 @@ loadMembers()
 
 }
 
-/* LINK USER TO MEMBER */
+/* ASSIGN ROLE TO MEMBER */
 
-async function linkUserToMember(memberId, memberName){
+async function assignRoleToMember(memberId, memberName, memberEmail){
 
-// Get all users
-const usersSnap = await db.collection("users").orderBy("Name").get()
+try {
+  // Check if member already has a role assigned
+  const existingUserSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+  let currentRoleDisplay = ""
+  let currentRoleValue = ""
 
-let userOptions = '<option value="">-- Select User to Link --</option>'
+  if(!existingUserSnap.empty){
+    const existingUser = existingUserSnap.docs[0].data()
+    currentRoleDisplay = `<p style="color: #4caf50;"><b>Currently Assigned Role:</b> ${existingUser.Role}</p>`
+    currentRoleValue = existingUser.Role
+  }
 
-for(const userDoc of usersSnap.docs){
-  const u = userDoc.data()
-  const isAlreadyLinked = u.MemberID === memberId
+  show(`
 
-  userOptions += `<option value="${userDoc.id}" ${isAlreadyLinked ? 'selected' : ''}>${u.Name} (${u.Email}) - ${u.Role}</option>`
+  <h2>Assign Role to Member: ${memberName}</h2>
+
+  <p><b>Email:</b> ${memberEmail}</p>
+
+  ${currentRoleDisplay}
+
+  <label>Select Role</label>
+  <select id="roleSelect" style="width:100%; padding:8px; margin:6px 0;">
+  <option value="">-- Select Role --</option>
+  <option value="Superuser" ${currentRoleValue === "Superuser" ? "selected" : ""}>Superuser (Full Access)</option>
+  <option value="Admin" ${currentRoleValue === "Admin" ? "selected" : ""}>Admin (Manage All)</option>
+  <option value="Treasurer" ${currentRoleValue === "Treasurer" ? "selected" : ""}>Treasurer (Finance)</option>
+  <option value="Secretary" ${currentRoleValue === "Secretary" ? "selected" : ""}>Secretary (Records)</option>
+  <option value="Joint Secretary" ${currentRoleValue === "Joint Secretary" ? "selected" : ""}>Joint Secretary (Records)</option>
+  <option value="Joint Treasurer" ${currentRoleValue === "Joint Treasurer" ? "selected" : ""}>Joint Treasurer (Finance)</option>
+  </select>
+
+  <br><br>
+
+  <p style="font-size:12px; color:#666;">Assigning a role will create/update an app user account for this member with their name and email.</p>
+
+  <br>
+
+  <button onclick="saveRoleAssignment('${memberId}', '${memberName}', '${memberEmail}')" style="padding:8px 16px; background:#4caf50; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Assign Role</button>
+  <button onclick="removeRoleFromMember('${memberId}')" style="padding:8px 16px; background:#d32f2f; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Remove Role</button>
+  <button onclick="loadMembers()" style="padding:8px 16px; background:#999; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
+
+  `)
+} catch(error){
+  console.error("Error assigning role:", error)
+  alert("Error loading role assignment. Please try again.")
 }
 
-// Check if member already has a linked user
-const linkedUserSnap = await db.collection("users").where("MemberID", "==", memberId).get()
-let linkedUserDisplay = ""
-if(!linkedUserSnap.empty){
-  const linkedUser = linkedUserSnap.docs[0].data()
-  linkedUserDisplay = `<p style="color: #4caf50;"><b>Currently Linked to:</b> ${linkedUser.Name} (${linkedUser.Email})</p>`
 }
 
-show(`
+/* SAVE ROLE ASSIGNMENT */
 
-<h2>Link User to Member: ${memberName}</h2>
+async function saveRoleAssignment(memberId, memberName, memberEmail){
 
-${linkedUserDisplay}
+const role = document.getElementById("roleSelect").value
 
-<label>Select User</label>
-<select id="userToLink" style="width:100%; padding:8px; margin:6px 0;">
-${userOptions}
-</select>
-
-<br><br>
-
-<p style="font-size:12px; color:#666;">Linking a user to a member allows the member to have an app login with a staff role. You can create a new user first if needed.</p>
-
-<br>
-
-<button onclick="saveUserLink('${memberId}', '${memberName}')" style="padding:8px 16px; background:#4caf50; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Link User</button>
-<button onclick="unlinkUserFromMember('${memberId}')" style="padding:8px 16px; background:#d32f2f; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Unlink User</button>
-<button onclick="loadMembers()" style="padding:8px 16px; background:#999; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
-
-`)
-
-}
-
-/* SAVE USER LINK */
-
-async function saveUserLink(memberId, memberName){
-
-const userToLink = document.getElementById("userToLink").value
-
-if(!userToLink){
-  alert("Please select a user to link")
+if(!role){
+  alert("Please select a role")
   return
 }
 
-// Get the user data
-const userDoc = await db.collection("users").doc(userToLink).get()
-const userData = userDoc.data()
+try {
+  // Check if user already exists for this member
+  const existingUserSnap = await db.collection("users").where("MemberID", "==", memberId).get()
 
-// Get the member data
-const memberDoc = await db.collection("members").doc(memberId).get()
-const memberData = memberDoc.data()
+  if(!existingUserSnap.empty){
+    // Update existing user with new role
+    const userId = existingUserSnap.docs[0].id
 
-// Check if this user is already linked to a different member
-if(userData.MemberID && userData.MemberID !== memberId){
-  if(!confirm(`This user is already linked to ${userData.MemberName}. Change link to ${memberName}?`)){
+    await db.collection("users").doc(userId).update({
+      Role: role
+    })
+
+    alert(`Role updated to ${role}`)
+  } else {
+    // Create new user for this member
+    await db.collection("users").add({
+      Name: memberName,
+      Email: memberEmail,
+      Role: role,
+      MemberID: memberId,
+      MemberName: memberName,
+      Active: true,
+      CreatedDate: new Date()
+    })
+
+    alert(`Role ${role} assigned to ${memberName}`)
+  }
+
+  loadMembers()
+} catch(error){
+  console.error("Error saving role:", error)
+  alert("Error saving role assignment. Please try again.")
+}
+
+}
+
+/* REMOVE ROLE FROM MEMBER */
+
+async function removeRoleFromMember(memberId){
+
+try {
+  const userSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+
+  if(userSnap.empty){
+    alert("No role assigned to this member")
     return
   }
+
+  if(!confirm("Are you sure you want to remove this member's app role?")){
+    return
+  }
+
+  const userId = userSnap.docs[0].id
+  const userData = userSnap.docs[0].data()
+
+  // Delete the user
+  await db.collection("users").doc(userId).delete()
+
+  alert(`Role removed from ${userData.Name}`)
+  loadMembers()
+} catch(error){
+  console.error("Error removing role:", error)
+  alert("Error removing role. Please try again.")
 }
-
-// Update the user to link to this member
-await db.collection("users").doc(userToLink).update({
-  MemberID: memberId,
-  MemberName: memberData.Name
-})
-
-alert(`Successfully linked ${userData.Name} to ${memberName}`)
-loadMembers()
-
-}
-
-/* UNLINK USER FROM MEMBER */
-
-async function unlinkUserFromMember(memberId){
-
-const linkedUserSnap = await db.collection("users").where("MemberID", "==", memberId).get()
-
-if(linkedUserSnap.empty){
-  alert("No user linked to this member")
-  return
-}
-
-if(!confirm("Are you sure you want to unlink this user?")){
-  return
-}
-
-const userDoc = linkedUserSnap.docs[0]
-const userData = userDoc.data()
-
-// Update user to remove member link
-await db.collection("users").doc(userDoc.id).update({
-  MemberID: null,
-  MemberName: null
-})
-
-alert(`Successfully unlinked ${userData.Name} from this member`)
-loadMembers()
 
 }
