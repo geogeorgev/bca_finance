@@ -239,21 +239,43 @@ return new Promise((resolve, reject) => {
 
   reader.onload = async function(event){
     try {
+      // Set up PDF.js worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+
       const pdf = await pdfjsLib.getDocument(new Uint8Array(event.target.result)).promise
       let fullText = ""
 
+      console.log("PDF pages:", pdf.numPages)
+
       // Extract text from all pages
       for(let i = 1; i <= pdf.numPages; i++){
-        const page = await pdf.getPage(i)
-        const textContent = await page.getTextContent()
-        const pageText = textContent.items.map(item => item.str).join(" ")
-        fullText += pageText + "\n"
+        try {
+          const page = await pdf.getPage(i)
+          const textContent = await page.getTextContent()
+          const pageText = textContent.items.map(item => item.str).join(" ")
+          fullText += pageText + "\n"
+          console.log(`Page ${i} text length:`, pageText.length)
+        } catch(pageError){
+          console.error(`Error extracting page ${i}:`, pageError)
+        }
+      }
+
+      console.log("Total extracted text length:", fullText.length)
+
+      if(fullText.length === 0){
+        reject(new Error("No text found in PDF. File may be image-based or corrupted."))
+        return
       }
 
       resolve(fullText)
     } catch(error){
+      console.error("PDF extraction error:", error)
       reject(error)
     }
+  }
+
+  reader.onerror = function(){
+    reject(new Error("Failed to read file"))
   }
 
   reader.readAsArrayBuffer(file)
@@ -675,20 +697,36 @@ document.getElementById("results").innerHTML = html
 
 async function viewImportedTransactions(){
 
-const snap = await db.collection("income")
-  .where("Type", "in", ["Stripe", "PayPal"])
-  .orderBy("CreatedDate", "desc")
+// Get all imported transactions (Stripe and PayPal)
+const stripeSnap = await db.collection("income")
+  .where("Type", "==", "Stripe")
+  .orderBy("CollectionDate", "desc")
   .get()
+
+const paypalSnap = await db.collection("income")
+  .where("Type", "==", "PayPal")
+  .orderBy("CollectionDate", "desc")
+  .get()
+
+// Combine results
+const allDocs = [...stripeSnap.docs, ...paypalSnap.docs]
 
 let html = '<h3>Imported Income Transactions</h3>'
 
-if(snap.empty){
+if(allDocs.length === 0){
   html += '<p>No imported transactions found</p>'
   document.getElementById("results").innerHTML = html
   return
 }
 
-for(const doc of snap.docs){
+// Sort by date descending
+allDocs.sort((a, b) => {
+  const dateA = new Date(a.data().CollectionDate)
+  const dateB = new Date(b.data().CollectionDate)
+  return dateB - dateA
+})
+
+for(const doc of allDocs){
   const txn = doc.data()
   html += `<div class="transaction-item">
     <b>${txn.MemberName}</b> - $${txn.Amount.toFixed(2)}<br>

@@ -1,3 +1,33 @@
+/* ===============================
+   LOAD DASHBOARD - Main Entry Point
+================================ */
+
+function loadDashboard(){
+
+const user = getCurrentUser()
+
+if(!user){
+  showLoginScreen()
+  return
+}
+
+// Route to appropriate dashboard based on role
+if(user.userRole === "Treasurer"){
+  treasurerDashboard()
+} else if(user.userRole === "Admin"){
+  treasurerDashboard()  // Same dashboard for now
+} else if(user.userRole === "Superuser"){
+  treasurerDashboard()  // Same dashboard for now
+} else {
+  treasurerDashboard()  // Default
+}
+
+}
+
+/* ===============================
+   TREASURER DASHBOARD
+================================ */
+
 async function treasurerDashboard(){
 
 const currentYear = new Date().getFullYear()
