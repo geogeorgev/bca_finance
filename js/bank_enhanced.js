@@ -3,7 +3,7 @@
    Stripe/PayPal PDF Income Capture
 ================================ */
 
-window.loadBankScreen = function(){
+function loadBankScreen(){
 
 let html = `
 
@@ -121,7 +121,7 @@ show(html)
    PROCESS PAYMENT STATEMENT
 ================================ */
 
-window.processPaymentStatement = async function(){
+async function processPaymentStatement(){
 
 const gateway = document.getElementById("gatewayType").value
 const fileType = document.getElementById("fileType").value
@@ -513,8 +513,6 @@ return transactions
 
 }
 
-}
-
 /* ===============================
    PARSE CSV TRANSACTIONS
 ================================ */
@@ -675,7 +673,7 @@ document.getElementById("results").innerHTML = html
    SHOW IMPORTED TRANSACTIONS
 ================================ */
 
-window.viewImportedTransactions = async function(){
+async function viewImportedTransactions(){
 
 const snap = await db.collection("income")
   .where("Type", "in", ["Stripe", "PayPal"])
