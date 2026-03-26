@@ -42,7 +42,6 @@ html+=`
 <b>${u.Name}</b><br>
 Email: ${u.Email || ""}<br>
 Role: <span style="color: ${roleColor}; font-weight: bold;">${u.Role}</span><br>
-Member Linked: ${u.MemberID ? "✓ Yes" : "✗ No"}<br>
 Status: ${u.Active ? "Active" : "Inactive"}<br>
 
 <br>
@@ -90,27 +89,44 @@ r.style.display="none"
 
 async function showAddUser(){
 
+// Get members not already linked to a user
 const membersSnap = await db.collection("members").orderBy("Name").get()
+const usersSnap = await db.collection("users").get()
 
-let memberOptions = '<option value="">-- Not Linked to Member --</option>'
+// Build set of already-linked MemberIDs
+const linkedMemberIds = new Set()
+usersSnap.forEach(doc => {
+  if(doc.data().MemberID) linkedMemberIds.add(doc.data().MemberID)
+})
 
+let memberOptions = '<option value="">-- Select Member --</option>'
 membersSnap.forEach(doc => {
   const m = doc.data()
-  memberOptions += `<option value="${doc.id}">${m.Name}</option>`
+  if(!linkedMemberIds.has(doc.id)){
+    memberOptions += `<option value="${doc.id}" data-email="${m.Email || ''}" data-name="${m.Name || ''}">${m.Name}${m.Email ? ' — ' + m.Email : ''}</option>`
+  }
 })
 
 show(`
 
 <h2>Add User</h2>
 
-<label>Name</label>
-<input id="userName" placeholder="User full name" style="width:100%; padding:8px; margin:6px 0;"><br><br>
+<p style="background:#e3f2fd; padding:12px; border-radius:4px; font-size:13px; margin-bottom:15px;">
+  ℹ️ Users must be existing <strong>Members</strong>. Select a member below — their Name and Email will be pulled automatically.
+</p>
 
-<label>Email</label>
-<input id="userEmail" type="email" placeholder="user@example.com" style="width:100%; padding:8px; margin:6px 0;"><br><br>
+<label>Select Member <span style="color:red">*</span></label>
+<select id="userMember" onchange="previewMemberInfo()" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px;">
+${memberOptions}
+</select>
 
-<label>Role</label>
-<select id="userRole" style="width:100%; padding:8px; margin:6px 0;">
+<div id="memberPreview" style="display:none; background:#f5f5f5; padding:10px; border-radius:4px; margin:8px 0; font-size:13px; color:#444;">
+</div>
+
+<br>
+
+<label>Role <span style="color:red">*</span></label>
+<select id="userRole" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px;">
 <option value="">-- Select Role --</option>
 <option value="Superuser">Superuser (Full Access)</option>
 <option value="Admin">Admin (Manage All)</option>
@@ -122,29 +138,19 @@ show(`
 
 <br><br>
 
-<label>Link to Member (Optional)</label>
-<select id="userMember" style="width:100%; padding:8px; margin:6px 0;">
-${memberOptions}
-</select>
-
-<br><br>
-
 <label>Status</label>
-<select id="userActive" style="width:100%; padding:8px; margin:6px 0;">
+<select id="userActive" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px;">
 <option value="true">Active</option>
 <option value="false">Inactive</option>
 </select>
 
 <br><br>
 
-<p style="font-size:12px; color:#666; margin:15px 0;">
-<strong>Note:</strong> Password is set separately in Firebase Authentication.
-Ask admin to create Firebase Auth account with the email address above.
+<p style="font-size:12px; color:#666; margin:10px 0;">
+  <strong>Note:</strong> Password is managed separately in Firebase Authentication using the member's email address.
 </p>
 
-<br>
-
-<button onclick="addUser()" style="padding:8px 16px; background:#4caf50; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Save User (Role Only)</button>
+<button onclick="addUser()" style="padding:8px 16px; background:#4caf50; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Save User</button>
 <button onclick="loadUsers()" style="padding:8px 16px; background:#999; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
 
 `)
@@ -152,52 +158,87 @@ Ask admin to create Firebase Auth account with the email address above.
 }
 
 
+/* PREVIEW MEMBER INFO WHEN SELECTED */
+
+function previewMemberInfo(){
+  const sel = document.getElementById("userMember")
+  const opt = sel.options[sel.selectedIndex]
+  const preview = document.getElementById("memberPreview")
+  const name = opt.getAttribute("data-name")
+  const email = opt.getAttribute("data-email")
+
+  if(sel.value && name){
+    preview.style.display = "block"
+    preview.innerHTML = `<strong>Name:</strong> ${name}<br><strong>Email:</strong> ${email || '<span style="color:#c00">No email on file — please update the member record first</span>'}`
+  } else {
+    preview.style.display = "none"
+  }
+}
+
 
 /* ADD USER */
 
 async function addUser(){
 
-const name = document.getElementById("userName").value
-const email = document.getElementById("userEmail").value
-const role = document.getElementById("userRole").value
 const memberId = document.getElementById("userMember").value
+const role = document.getElementById("userRole").value
 const active = document.getElementById("userActive").value === "true"
 
-if(!name || !email || !role){
-  alert("Please fill in Name, Email, and Role")
+if(!memberId){
+  alert("Please select a member")
+  return
+}
+if(!role){
+  alert("Please select a role")
   return
 }
 
-// Check if email already exists
-const existingSnap = await db.collection("users").where("Email", "==", email).get()
+// Get name and email from member record
+const memberDoc = await db.collection("members").doc(memberId).get()
+if(!memberDoc.exists){
+  alert("Member not found")
+  return
+}
+const memberData = memberDoc.data()
+const name = memberData.Name
+const email = memberData.Email || ""
+
+if(!email){
+  if(!confirm("This member has no email on file. Continue anyway?\n\nNote: They won't be able to log in until an email is added.")){
+    return
+  }
+}
+
+// Check if member already linked to a user
+const existingSnap = await db.collection("users").where("MemberID", "==", memberId).get()
 if(!existingSnap.empty){
-  alert("Email already in use")
+  alert("This member already has a user account")
   return
 }
 
-// Get member name if linked
-let memberName = ""
-if(memberId){
-  const memberDoc = await db.collection("members").doc(memberId).get()
-  memberName = memberDoc.data().Name
+// Check if email already exists in users
+if(email){
+  const emailSnap = await db.collection("users").where("Email", "==", email).get()
+  if(!emailSnap.empty){
+    alert("A user with this email already exists")
+    return
+  }
 }
 
-// Save user with ROLE ONLY (no password)
 await db.collection("users").add({
   Name: name,
   Email: email,
   Role: role,
-  MemberID: memberId || null,
-  MemberName: memberName || null,
+  MemberID: memberId,
+  MemberName: name,
   Active: active,
   CreatedDate: new Date()
 })
 
-alert("User added successfully!\n\nNEXT STEP: Ask admin to create Firebase Authentication account with email: " + email)
+alert("User added successfully!\n\nNEXT STEP: Create a Firebase Authentication account with email: " + (email || "(no email on file)"))
 loadUsers()
 
 }
-
 
 
 /* EDIT USER */
@@ -207,28 +248,46 @@ async function editUser(id){
 const doc = await db.collection("users").doc(id).get()
 const u = doc.data()
 
+// Get all members for dropdown
 const membersSnap = await db.collection("members").orderBy("Name").get()
+const usersSnap = await db.collection("users").get()
 
-let memberOptions = '<option value="">-- Not Linked to Member --</option>'
+// Build set of already-linked MemberIDs (exclude current user's member)
+const linkedMemberIds = new Set()
+usersSnap.forEach(d => {
+  if(d.data().MemberID && d.data().MemberID !== u.MemberID) linkedMemberIds.add(d.data().MemberID)
+})
 
+let memberOptions = '<option value="">-- Select Member --</option>'
 membersSnap.forEach(docM => {
   const m = docM.data()
-  const selected = u.MemberID === docM.id ? "selected" : ""
-  memberOptions += `<option value="${docM.id}" ${selected}>${m.Name}</option>`
+  if(!linkedMemberIds.has(docM.id)){
+    const selected = u.MemberID === docM.id ? "selected" : ""
+    memberOptions += `<option value="${docM.id}" data-email="${m.Email || ''}" data-name="${m.Name || ''}" ${selected}>${m.Name}${m.Email ? ' — ' + m.Email : ''}</option>`
+  }
 })
 
 show(`
 
 <h2>Edit User</h2>
 
-<label>Name</label>
-<input id="userName" value="${u.Name}" style="width:100%; padding:8px; margin:6px 0;"><br><br>
+<p style="background:#e3f2fd; padding:12px; border-radius:4px; font-size:13px; margin-bottom:15px;">
+  ℹ️ Name and Email are pulled from the Member record. To change them, update the member directly.
+</p>
 
-<label>Email</label>
-<input id="userEmail" type="email" value="${u.Email}" style="width:100%; padding:8px; margin:6px 0;"><br><br>
+<label>Select Member <span style="color:red">*</span></label>
+<select id="userMember" onchange="previewMemberInfo()" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px;">
+${memberOptions}
+</select>
 
-<label>Role</label>
-<select id="userRole" style="width:100%; padding:8px; margin:6px 0;">
+<div id="memberPreview" style="background:#f5f5f5; padding:10px; border-radius:4px; margin:8px 0; font-size:13px; color:#444;">
+  <strong>Name:</strong> ${u.Name || ""}<br><strong>Email:</strong> ${u.Email || "(none)"}
+</div>
+
+<br>
+
+<label>Role <span style="color:red">*</span></label>
+<select id="userRole" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px;">
 <option value="Superuser" ${u.Role === "Superuser" ? "selected" : ""}>Superuser (Full Access)</option>
 <option value="Admin" ${u.Role === "Admin" ? "selected" : ""}>Admin (Manage All)</option>
 <option value="Treasurer" ${u.Role === "Treasurer" ? "selected" : ""}>Treasurer (Finance)</option>
@@ -239,15 +298,8 @@ show(`
 
 <br><br>
 
-<label>Link to Member (Optional)</label>
-<select id="userMember" style="width:100%; padding:8px; margin:6px 0;">
-${memberOptions}
-</select>
-
-<br><br>
-
 <label>Status</label>
-<select id="userActive" style="width:100%; padding:8px; margin:6px 0;">
+<select id="userActive" style="width:100%; padding:8px; margin:6px 0; border:1px solid #ccc; border-radius:4px;">
 <option value="true" ${u.Active ? "selected" : ""}>Active</option>
 <option value="false" ${!u.Active ? "selected" : ""}>Inactive</option>
 </select>
@@ -267,40 +319,43 @@ ${memberOptions}
 
 async function updateUser(id){
 
-const name = document.getElementById("userName").value
-const email = document.getElementById("userEmail").value
-const role = document.getElementById("userRole").value
 const memberId = document.getElementById("userMember").value
+const role = document.getElementById("userRole").value
 const active = document.getElementById("userActive").value === "true"
 
-if(!name || !email || !role){
-  alert("Please fill in Name, Email, and Role")
+if(!memberId){
+  alert("Please select a member")
+  return
+}
+if(!role){
+  alert("Please select a role")
   return
 }
 
-// Check if email changed and already exists
-const userDoc = await db.collection("users").doc(id).get()
-if(userDoc.data().Email !== email){
-  const existingSnap = await db.collection("users").where("Email", "==", email).get()
-  if(!existingSnap.empty){
-    alert("Email already in use")
-    return
-  }
+// Get name and email from member record
+const memberDoc = await db.collection("members").doc(memberId).get()
+if(!memberDoc.exists){
+  alert("Member not found")
+  return
 }
+const memberData = memberDoc.data()
+const name = memberData.Name
+const email = memberData.Email || ""
 
-// Get member name if linked
-let memberName = ""
-if(memberId){
-  const memberDoc = await db.collection("members").doc(memberId).get()
-  memberName = memberDoc.data().Name
+// Check if another user already uses this member (excluding current)
+const existingSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+const conflict = existingSnap.docs.find(d => d.id !== id)
+if(conflict){
+  alert("This member is already linked to another user account")
+  return
 }
 
 await db.collection("users").doc(id).update({
   Name: name,
   Email: email,
   Role: role,
-  MemberID: memberId || null,
-  MemberName: memberName || null,
+  MemberID: memberId,
+  MemberName: name,
   Active: active
 })
 
@@ -308,7 +363,6 @@ alert("User updated successfully")
 loadUsers()
 
 }
-
 
 
 /* DELETE USER */
@@ -325,4 +379,3 @@ alert("User deleted")
 loadUsers()
 
 }
-
