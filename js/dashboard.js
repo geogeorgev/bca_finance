@@ -45,15 +45,17 @@ let ytdExpense = 0
 // Process income data
 incomeSnap.forEach(doc=>{
   const d = doc.data()
-  //const date = new Date(d.CollectionDate.seconds*1000)
 
   if(!d.CollectionDate) return
-  const date = new Date(d.CollectionDate)
+  // Parse date string as local date, not UTC
+  const dateStr = d.CollectionDate
+  const [year, month, day] = dateStr.split('-')
+  const date = new Date(year, month - 1, day)
 
-  const year = date.getFullYear()
+  const year_val = date.getFullYear()
 
   // Calculate YTD
-  if(year === currentYear){
+  if(year_val === currentYear){
     //ytdIncome += d.Amount
     ytdIncome += Number(d.Amount || 0)
   }

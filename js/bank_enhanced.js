@@ -721,8 +721,12 @@ if(allDocs.length === 0){
 
 // Sort by date descending
 allDocs.sort((a, b) => {
-  const dateA = new Date(a.data().CollectionDate)
-  const dateB = new Date(b.data().CollectionDate)
+  const dateStrA = a.data().CollectionDate
+  const dateStrB = b.data().CollectionDate
+  const [yearA, monthA, dayA] = dateStrA.split('-')
+  const [yearB, monthB, dayB] = dateStrB.split('-')
+  const dateA = new Date(yearA, monthA - 1, dayA)
+  const dateB = new Date(yearB, monthB - 1, dayB)
   return dateB - dateA
 })
 

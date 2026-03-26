@@ -101,7 +101,10 @@ snap.forEach(doc=>{
   const d = doc.data()
   if(!d.CollectionDate) return
 
-  const collectionDate = new Date(d.CollectionDate)
+  // Parse date string as local date, not UTC
+  const dateStr = d.CollectionDate
+  const [year, month, day] = dateStr.split('-')
+  const collectionDate = new Date(year, month - 1, day)
 
   if(collectionDate >= startDate && collectionDate <= endDate){
     collections.push({
@@ -605,7 +608,10 @@ let contributions = []
 
 incomeSnap.forEach(doc=>{
   const d = doc.data()
-  const date = new Date(d.CollectionDate)
+  // Parse date string as local date, not UTC
+  const dateStr = d.CollectionDate
+  const [year, month, day] = dateStr.split('-')
+  const date = new Date(year, month - 1, day)
 
   // Filter by year
   if(date.getFullYear() === taxYear){
@@ -783,7 +789,10 @@ for(const member of activeMembers){
 
   incomeSnap.forEach(doc=>{
     const d = doc.data()
-    const date = new Date(d.CollectionDate)
+    // Parse date string as local date, not UTC
+    const dateStr = d.CollectionDate
+    const [year, month, day] = dateStr.split('-')
+    const date = new Date(year, month - 1, day)
 
     if(date.getFullYear() === taxYear){
       totalContribution += d.Amount
