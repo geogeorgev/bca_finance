@@ -254,6 +254,15 @@ if(!amount || amount <= 0){
   return
 }
 
+// VALIDATION: Ensure Pay Date is within Budget Year
+const payDateObj = new Date(payDate)
+const payDateYear = payDateObj.getFullYear().toString()
+
+if(payDateYear !== budgetYear){
+  alert(`Pay Date must be in ${budgetYear}.\n\nYou selected: ${payDateObj.toLocaleDateString()} (${payDateYear})\n\nPlease select a date within the Budget Year ${budgetYear}.`)
+  return
+}
+
 // Upload receipt if file selected
 let receiptDocId = null
 let receiptFileName = null
