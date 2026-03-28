@@ -11,3 +11,4 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 const db = firebase.firestore();
+// Firebase Storage requires Blaze plan - receipts stored in Firestore instead

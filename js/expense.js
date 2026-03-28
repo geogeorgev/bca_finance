@@ -45,9 +45,11 @@ const year = paymentDate ? paymentDate.getFullYear() : null
 
 // Only show expenses for current year
 if (year === currentYear) {
-  const receiptCell = e.ReceiptUrl
-    ? `<a href="${e.ReceiptUrl}" target="_blank" style="color: #2196f3; text-decoration: none;">📎 ${e.ReceiptFileName || 'View'}</a>`
-    : '<span style="color: #ccc;">—</span>'
+  const receiptCell = e.ReceiptDocID
+    ? `<a href="#" onclick="viewReceipt('${e.ReceiptDocID}')" style="color:#2196f3; text-decoration:none; cursor:pointer;">📎 ${e.ReceiptFileName || 'View Receipt'}</a>`
+    : e.ReceiptUrl
+      ? `<a href="${e.ReceiptUrl}" target="_blank" style="color:#2196f3; text-decoration:none;">📎 ${e.ReceiptFileName || 'View'}</a>`
+      : '<span style="color:#ccc;">—</span>'
 
   rows+=`
 
@@ -227,53 +229,43 @@ if(!amount || amount <= 0){
 }
 
 // Upload receipt if file selected
-let receiptUrl = null
+let receiptDocId = null
 let receiptFileName = null
 
 if(receiptFile){
-  try {
-    // Check if Firebase Storage is initialized
-    if(!firebase.storage){
-      throw new Error("Firebase Storage not initialized")
-    }
+  // Max ~700KB file → ~950KB base64 — stays under Firestore's 1MB doc limit
+  const maxSize = 700 * 1024
+  if(receiptFile.size > maxSize){
+    alert(`Receipt file is too large (${(receiptFile.size/1024).toFixed(0)}KB).\nPlease use a file under 700KB.\nTip: Compress the image or PDF before uploading.`)
+    // Continue saving expense without receipt
+  } else {
+    try {
+      // Read file as Base64 data URL
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = e => resolve(e.target.result)
+        reader.onerror = reject
+        reader.readAsDataURL(receiptFile)
+      })
 
-    // Create unique filename with timestamp
-    const timestamp = Date.now()
-    const fileName = `${timestamp}_${receiptFile.name}`
-    const storagePath = `receipts/${budgetYear}/${fileName}`
+      // Save to separate 'receipts' collection to keep expense docs lightweight
+      const receiptRef = db.collection("receipts").doc()
+      await receiptRef.set({
+        FileName: receiptFile.name,
+        FileType: receiptFile.type,
+        FileSizeKB: Math.round(receiptFile.size / 1024),
+        Data: base64Data,
+        BudgetYear: budgetYear,
+        UploadedAt: new Date()
+      })
 
-    console.log("Starting receipt upload:", storagePath)
+      receiptDocId = receiptRef.id
+      receiptFileName = receiptFile.name
+      console.log("Receipt saved to Firestore:", receiptDocId)
 
-    // Upload to Firebase Storage
-    const storageRef = firebase.storage().ref(storagePath)
-    const uploadTask = storageRef.put(receiptFile)
-
-    // Wait for upload to complete
-    const snapshot = await uploadTask
-
-    // Get download URL
-    receiptUrl = await snapshot.ref.getDownloadURL()
-    receiptFileName = receiptFile.name
-
-    console.log("Receipt uploaded successfully:", receiptUrl)
-  } catch(error){
-    console.error("Error uploading receipt:", error.message)
-    console.error("Full error:", error)
-
-    // Log more details to help troubleshoot
-    if(error.code){
-      console.error("Error code:", error.code)
-    }
-
-    // Show more detailed error to user
-    if(error.code === "storage/unauthorized"){
-      alert("Storage permission denied. Contact administrator.")
-    } else if(error.code === "storage/unknown"){
-      alert("Storage error. Please try again.")
-    } else if(error.message === "Firebase Storage not initialized"){
-      alert("Storage not configured. Expense saved without receipt.")
-    } else {
-      alert("Failed to upload receipt. Expense will be saved without receipt.")
+    } catch(error){
+      console.error("Error saving receipt:", error)
+      alert("Failed to save receipt. Expense will be saved without receipt.")
     }
   }
 }
@@ -291,7 +283,7 @@ await db.collection("expense").add({
   CheckNumber: paymentMethod === "check" ? checkNumber : null,
   Description: description,
   BudgetYear: budgetYear,
-  ReceiptUrl: receiptUrl,
+  ReceiptDocID: receiptDocId,
   ReceiptFileName: receiptFileName,
   CreatedDate: new Date()
 })
@@ -330,7 +322,7 @@ if(!budgetSnap.empty){
   }
 }
 
-alert("Expense Saved" + (receiptUrl ? " and Receipt Uploaded" : ""))
+alert("Expense Saved" + (receiptDocId ? " with Receipt" : ""))
 loadExpense()
 
 }
@@ -453,3 +445,40 @@ ${table}
 win.print()
 
 }
+
+
+/* VIEW RECEIPT - Fetch base64 from Firestore and open in new tab */
+
+async function viewReceipt(receiptDocId){
+  try {
+    const doc = await db.collection("receipts").doc(receiptDocId).get()
+    if(!doc.exists){
+      alert("Receipt not found.")
+      return
+    }
+    const r = doc.data()
+    const win = window.open("", "_blank")
+
+    if(r.FileType && r.FileType.startsWith("image/")){
+      win.document.write(`
+        <!DOCTYPE html><html><head><title>${r.FileName || 'Receipt'}</title></head>
+        <body style="margin:0; background:#222; display:flex; justify-content:center; align-items:flex-start; min-height:100vh; padding:20px; box-sizing:border-box;">
+          <img src="${r.Data}" style="max-width:100%; border-radius:4px; box-shadow:0 2px 12px rgba(0,0,0,0.5);" alt="${r.FileName || 'Receipt'}">
+        </body></html>
+      `)
+    } else {
+      // PDF or other — embed in iframe
+      win.document.write(`
+        <!DOCTYPE html><html><head><title>${r.FileName || 'Receipt'}</title></head>
+        <body style="margin:0;">
+          <iframe src="${r.Data}" style="width:100vw; height:100vh; border:none;"></iframe>
+        </body></html>
+      `)
+    }
+    win.document.close()
+  } catch(error){
+    console.error("Error loading receipt:", error)
+    alert("Failed to load receipt.")
+  }
+}
+
