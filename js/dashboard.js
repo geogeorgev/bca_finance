@@ -30,75 +30,51 @@ if(user.userRole === "Treasurer"){
 
 async function treasurerDashboard(){
 
-const currentYear = new Date().getFullYear()
-
-// Get all income and expense data
+// Get all available years from data
 const incomeSnap = await db.collection("income").get()
 const expenseSnap = await db.collection("expense").get()
 const budgetSnap = await db.collection("budget").get()
 
-let monthlyIncome = {}
-let monthlyExpense = {}
-let ytdIncome = 0
-let ytdExpense = 0
+let yearsSet = new Set()
 
-// Process income data
+// Get years from income
 incomeSnap.forEach(doc=>{
   const d = doc.data()
-
-  if(!d.CollectionDate) return
-  // Parse date string as local date, not UTC
-  const dateStr = d.CollectionDate
-  const [year, month, day] = dateStr.split('-')
-  const date = new Date(year, month - 1, day)
-
-  const year_val = date.getFullYear()
-
-  // Calculate YTD
-  if(year_val === currentYear){
-    //ytdIncome += d.Amount
-    ytdIncome += Number(d.Amount || 0)
+  if(d.CollectionDate){
+    const dateStr = d.CollectionDate
+    const [year] = dateStr.split('-')
+    yearsSet.add(year)
   }
-
-  const key = year + "-" + String(date.getMonth()+1).padStart(2, '0')
-  monthlyIncome[key] = (monthlyIncome[key] || 0) + d.Amount
 })
 
-
-// Process expense data
+// Get years from expense
 expenseSnap.forEach(doc=>{
   const d = doc.data()
-  const date = new Date(d.PaymentDate.seconds*1000)
-  const year = date.getFullYear()
-
-  // Calculate YTD
-  if(year === currentYear){
-    ytdExpense += d.Amount
+  if(d.PaymentDate){
+    const date = new Date(d.PaymentDate.seconds ? d.PaymentDate.seconds*1000 : d.PaymentDate)
+    const year = date.getFullYear().toString()
+    yearsSet.add(year)
   }
-
-  const key = year + "-" + String(date.getMonth()+1).padStart(2, '0')
-  monthlyExpense[key] = (monthlyExpense[key] || 0) + d.Amount
 })
 
-// Get budget totals for current year only
-let totalBudget = 0
-let totalSpent = 0
+// Get years from budget
 budgetSnap.forEach(doc=>{
   const b = doc.data()
-  // Extract year from BudgetID (e.g., "2026-Missions" -> "2026")
-  const year = b.BudgetID ? b.BudgetID.split("-")[0] : currentYear.toString()
-
-  // Only include budgets for current year
-  if (year === currentYear.toString()) {
-    totalBudget += b.BudgetAmount || 0
-    totalSpent += b.Spent || 0
+  if(b.BudgetID){
+    const year = b.BudgetID.split("-")[0]
+    yearsSet.add(year)
   }
 })
 
-const ytdBalance = ytdIncome - ytdExpense
+const currentYear = new Date().getFullYear().toString()
+const sortedYears = Array.from(yearsSet).sort().reverse()
+let yearOptions = ""
+sortedYears.forEach(year => {
+  yearOptions += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`
+})
 
-// Create dashboard HTML
-let html = `
+show(`
+
 <style>
   .dashboard-container {
     display: grid;
@@ -167,55 +143,167 @@ let html = `
     border-bottom: 3px solid #667eea;
     padding-bottom: 12px;
   }
+
+  .year-selector-container {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .year-selector-container label {
+    font-weight: bold;
+    color: #333;
+  }
+
+  .year-selector-container select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+  }
 </style>
 
-<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px;">
   <h2 style="margin: 0;">Treasurer Dashboard</h2>
-  <p style="margin: 5px 0 0 0; opacity: 0.9;">Year ${currentYear} Financial Overview</p>
+  <p style="margin: 5px 0 0 0; opacity: 0.9;">Financial Overview</p>
 </div>
 
-<div class="dashboard-container">
-
-  <div class="summary-card income">
-    <h3>YTD Collection</h3>
-    <div class="amount">$${ytdIncome.toFixed(2)}</div>
-    <div class="year">Year to Date</div>
-  </div>
-
-  <div class="summary-card expense">
-    <h3>YTD Expense</h3>
-    <div class="amount">$${ytdExpense.toFixed(2)}</div>
-    <div class="year">Year to Date</div>
-  </div>
-
-  <div class="summary-card balance">
-    <h3>YTD Balance</h3>
-    <div class="amount">$${ytdBalance.toFixed(2)}</div>
-    <div class="year">${ytdBalance >= 0 ? 'Surplus' : 'Deficit'}</div>
-  </div>
-
+<div class="year-selector-container">
+  <label>Select Year:</label>
+  <select id="dashboardYear" onchange="updateDashboard()" style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:14px; cursor:pointer;">
+    ${yearOptions}
+  </select>
 </div>
 
-<div class="charts-container">
-  <div class="chart-card">
-    <h3>Monthly Collection vs Expense</h3>
-    <canvas id="monthlyChart" height="80"></canvas>
-  </div>
+<div id="dashboardContent"></div>
 
-  <div class="chart-card">
-    <h3>Budget vs Actual Spending</h3>
-    <canvas id="budgetChart" height="80"></canvas>
-  </div>
-</div>
-`
+`)
 
-show(html)
+// Load initial dashboard content
+await updateDashboard()
 
-// Draw monthly trend chart
-await drawMonthlyChart(monthlyIncome, monthlyExpense, currentYear)
+}
 
-// Draw budget vs actual chart
-drawBudgetVsActualChart(budgetSnap)
+async function updateDashboard(){
+  const selectedYear = document.getElementById("dashboardYear").value
+
+  // Get all data
+  const incomeSnap = await db.collection("income").get()
+  const expenseSnap = await db.collection("expense").get()
+  const budgetSnap = await db.collection("budget").get()
+
+  let monthlyIncome = {}
+  let monthlyExpense = {}
+  let ytdIncome = 0
+  let ytdExpense = 0
+
+  // Process income data
+  incomeSnap.forEach(doc=>{
+    const d = doc.data()
+
+    if(!d.CollectionDate) return
+    // Parse date string as local date, not UTC
+    const dateStr = d.CollectionDate
+    const [year, month, day] = dateStr.split('-')
+    const date = new Date(year, month - 1, day)
+
+    const year_val = date.getFullYear().toString()
+
+    // Calculate YTD for selected year
+    if(year_val === selectedYear){
+      ytdIncome += Number(d.Amount || 0)
+    }
+
+    // Include in monthly for selected year
+    if(year_val === selectedYear){
+      const key = year + "-" + String(date.getMonth()+1).padStart(2, '0')
+      monthlyIncome[key] = (monthlyIncome[key] || 0) + d.Amount
+    }
+  })
+
+  // Process expense data
+  expenseSnap.forEach(doc=>{
+    const d = doc.data()
+    const date = new Date(d.PaymentDate.seconds ? d.PaymentDate.seconds*1000 : d.PaymentDate)
+    const year = date.getFullYear().toString()
+
+    // Calculate YTD for selected year
+    if(year === selectedYear){
+      ytdExpense += d.Amount
+    }
+
+    // Include in monthly for selected year
+    if(year === selectedYear){
+      const key = year + "-" + String(date.getMonth()+1).padStart(2, '0')
+      monthlyExpense[key] = (monthlyExpense[key] || 0) + d.Amount
+    }
+  })
+
+  // Get budget totals for selected year only
+  let totalBudget = 0
+  let totalSpent = 0
+  budgetSnap.forEach(doc=>{
+    const b = doc.data()
+    // Extract year from BudgetID
+    const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+
+    // Only include budgets for selected year
+    if (year === selectedYear) {
+      totalBudget += b.BudgetAmount || 0
+      totalSpent += b.Spent || 0
+    }
+  })
+
+  const ytdBalance = ytdIncome - ytdExpense
+
+  // Build and display HTML
+  let html = `
+    <div class="dashboard-container">
+      <div class="summary-card income">
+        <h3>YTD Collection</h3>
+        <div class="amount">$${ytdIncome.toFixed(2)}</div>
+        <div class="year">Year ${selectedYear}</div>
+      </div>
+
+      <div class="summary-card expense">
+        <h3>YTD Expense</h3>
+        <div class="amount">$${ytdExpense.toFixed(2)}</div>
+        <div class="year">Year ${selectedYear}</div>
+      </div>
+
+      <div class="summary-card balance">
+        <h3>YTD Balance</h3>
+        <div class="amount">$${ytdBalance.toFixed(2)}</div>
+        <div class="year">${ytdBalance >= 0 ? 'Surplus' : 'Deficit'}</div>
+      </div>
+    </div>
+
+    <div class="charts-container">
+      <div class="chart-card">
+        <h3>Monthly Collection vs Expense</h3>
+        <canvas id="monthlyChart" height="80"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Budget vs Actual Spending</h3>
+        <canvas id="budgetChart" height="80"></canvas>
+      </div>
+    </div>
+  `
+
+  document.getElementById("dashboardContent").innerHTML = html
+
+  // Draw monthly trend chart
+  await drawMonthlyChart(monthlyIncome, monthlyExpense, selectedYear)
+
+  // Draw budget vs actual chart
+  await drawBudgetVsActualChart(budgetSnap, selectedYear)
 
 }
 
@@ -295,9 +383,7 @@ new Chart(ctx, {
 }
 
 /* DRAW BUDGET VS ACTUAL CHART */
-async function drawBudgetVsActualChart(budgetSnap){
-
-const currentYear = new Date().getFullYear()
+async function drawBudgetVsActualChart(budgetSnap, selectedYear){
 
 let labels = []
 let budgetData = []
@@ -306,10 +392,11 @@ let spentData = []
 budgetSnap.forEach(doc=>{
   const b = doc.data()
   // Extract year from BudgetID
-  const year = b.BudgetID ? b.BudgetID.split("-")[0] : currentYear.toString()
+  const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
+  const status = b.BudgetStatus || "Inactive"
 
-  // Only include budgets for current year
-  if (year === currentYear.toString()) {
+  // Only include ACTIVE budgets for selected year
+  if (year === selectedYear && status === "Active") {
     labels.push(b.Category + " - " + b.SubCategory)
     budgetData.push(b.BudgetAmount || 0)
     spentData.push(b.Spent || 0)

@@ -263,6 +263,31 @@ if(payDateYear !== budgetYear){
   return
 }
 
+// VALIDATION: Check if selected budget is Active
+const budgetSnap = await db.collection("budget")
+  .where("Category", "==", category)
+  .where("SubCategory", "==", subCategory)
+  .get()
+
+let budgetStatus = "Active" // Default to Active
+if(!budgetSnap.empty){
+  budgetSnap.forEach(doc => {
+    const b = doc.data()
+    const year = b.BudgetID ? b.BudgetID.split("-")[0] : budgetYear
+    if(year === budgetYear){
+      budgetStatus = b.BudgetStatus || "Active"
+    }
+  })
+}
+
+// Block if budget is Inactive
+if(budgetStatus === "Inactive"){
+  const confirmAdd = confirm(`⚠️ WARNING: The budget for ${category} - ${subCategory} in ${budgetYear} is INACTIVE.\n\nDo you want to continue adding this expense?\n\nNote: Consider activating the budget in the Budget screen if you need to track expenses.`)
+  if(!confirmAdd){
+    return
+  }
+}
+
 // Upload receipt if file selected
 let receiptDocId = null
 let receiptFileName = null
