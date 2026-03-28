@@ -387,9 +387,6 @@ loadExpense()
 
 }
 
-
-/* LOAD SUB CATEGORIES BASED ON SELECTED CATEGORY */
-
 async function loadSubCategories(){
 
 const currentYear = new Date().getFullYear()
