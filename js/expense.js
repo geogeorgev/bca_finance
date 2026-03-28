@@ -4,92 +4,111 @@ show(`
 
 <h2>Expense</h2>
 
-<button onclick="showAddExpense()">Add Expense</button>
-<button onclick="printExpense()">Print</button>
+<button onclick="showAddExpense()" style="padding:8px 16px; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">+ Add Expense</button>
 
 <br><br>
 
-<table border="1" width="100%" id="expenseTable">
-
-<thead>
-<tr>
-<th>Type</th>
-<th>Member/Payee</th>
-<th>Category</th>
-<th>SubCategory</th>
-<th>Amount</th>
-<th>Payment Method</th>
-<th>Check #</th>
-<th>Description</th>
-<th>Pay Date</th>
-<th>Receipt</th>
-<th>Actions</th>
-</tr>
-</thead>
-
-<tbody id="expenseBody"></tbody>
-
-</table>
+<div id="expenseContent"></div>
 
 `)
 
-const currentYear = new Date().getFullYear()
 const snap = await db.collection("expense").orderBy("PaymentDate", "desc").get()
 
-let rows=""
+// Group expenses by year
+let expensesByYear = {}
 
 snap.forEach(doc=>{
+  const e = doc.data()
+  const paymentDate = e.PaymentDate ? new Date(e.PaymentDate.toDate()) : null
+  const year = paymentDate ? paymentDate.getFullYear() : "Unknown"
 
-const e = doc.data()
-const paymentDate = e.PaymentDate ? new Date(e.PaymentDate.toDate()) : null
-const year = paymentDate ? paymentDate.getFullYear() : null
-
-// Only show expenses for current year
-if (year === currentYear) {
-  const receiptCell = e.ReceiptDocID
-    ? `<a href="#" onclick="viewReceipt('${e.ReceiptDocID}')" style="color:#2196f3; text-decoration:none; cursor:pointer;">📎 ${e.ReceiptFileName || 'View Receipt'}</a>`
-    : e.ReceiptUrl
-      ? `<a href="${e.ReceiptUrl}" target="_blank" style="color:#2196f3; text-decoration:none;">📎 ${e.ReceiptFileName || 'View'}</a>`
-      : '<span style="color:#ccc;">—</span>'
-
-  const actionCell = !e.ReceiptDocID && !e.ReceiptUrl
-    ? `<button onclick="showAddReceiptDialog('${doc.id}', '${e.BudgetYear || 'N/A'}')" style="padding:4px 10px; background:#4caf50; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">Add Receipt</button>`
-    : '<span style="color:#ccc;">—</span>'
-
-  rows+=`
-
-  <tr>
-
-  <td>${e.Type || "N/A"}</td>
-
-  <td>${e.MemberName || e.PayeeName || ""}</td>
-
-  <td>${e.Category || ""}</td>
-
-  <td>${e.SubCategory || ""}</td>
-
-  <td>${e.Amount}</td>
-
-  <td>${e.PaymentMethod || "N/A"}</td>
-
-  <td>${e.CheckNumber || ""}</td>
-
-  <td>${e.Description || ""}</td>
-
-  <td>${paymentDate ? paymentDate.toLocaleDateString() : ""}</td>
-
-  <td>${receiptCell}</td>
-
-  <td>${actionCell}</td>
-
-  </tr>
-
-  `
-}
-
+  if(!expensesByYear[year]) expensesByYear[year] = []
+  expensesByYear[year].push({id: doc.id, data: e, paymentDate: paymentDate})
 })
 
-document.getElementById("expenseBody").innerHTML=rows
+// Sort years descending (newest first)
+const sortedYears = Object.keys(expensesByYear).sort((a, b) => b - a)
+
+let html = ""
+
+sortedYears.forEach(year => {
+  const expenses = expensesByYear[year]
+  let yearTotal = 0
+  let tableRows = ""
+
+  expenses.forEach(exp => {
+    const e = exp.data
+    const paymentDate = exp.paymentDate
+    yearTotal += e.Amount || 0
+
+    const receiptCell = e.ReceiptDocID
+      ? `<a href="#" onclick="viewReceipt('${e.ReceiptDocID}')" style="color:#2196f3; text-decoration:none; cursor:pointer;">📎 ${e.ReceiptFileName || 'View Receipt'}</a>`
+      : e.ReceiptUrl
+        ? `<a href="${e.ReceiptUrl}" target="_blank" style="color:#2196f3; text-decoration:none;">📎 ${e.ReceiptFileName || 'View'}</a>`
+        : '<span style="color:#ccc;">—</span>'
+
+    const actionCell = !e.ReceiptDocID && !e.ReceiptUrl
+      ? `<button onclick="showAddReceiptDialog('${exp.id}', '${e.BudgetYear || 'N/A'}')" style="padding:4px 10px; background:#4caf50; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">Add Receipt</button>`
+      : '<span style="color:#ccc;">—</span>'
+
+    tableRows += `
+      <tr>
+        <td style="padding:8px;">${e.Type || "N/A"}</td>
+        <td style="padding:8px;">${e.MemberName || e.PayeeName || ""}</td>
+        <td style="padding:8px;">${e.Category || ""}</td>
+        <td style="padding:8px;">${e.SubCategory || ""}</td>
+        <td style="padding:8px; text-align:right;">$${(e.Amount || 0).toFixed(2)}</td>
+        <td style="padding:8px;">${e.PaymentMethod || "N/A"}</td>
+        <td style="padding:8px;">${e.CheckNumber || ""}</td>
+        <td style="padding:8px;">${e.Description || ""}</td>
+        <td style="padding:8px;">${paymentDate ? paymentDate.toLocaleDateString() : ""}</td>
+        <td style="padding:8px;">${receiptCell}</td>
+        <td style="padding:8px;">${actionCell}</td>
+      </tr>
+    `
+  })
+
+  // Create section for each year
+  html += `
+    <div style="margin-bottom:30px; border:1px solid #ddd; border-radius:4px; overflow:hidden;">
+      <div style="background:#667eea; color:white; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:18px;">Expenses - ${year}</h3>
+        <button onclick="printExpenseYear(${year})" style="padding:6px 12px; background:white; color:#667eea; border:none; border-radius:3px; cursor:pointer; font-weight:bold;">🖨️ Print ${year}</button>
+      </div>
+
+      <table border="1" width="100%" style="border-collapse:collapse; margin:0;" class="expenseTable year${year}">
+        <thead style="background:#f5f5f5;">
+          <tr>
+            <th style="padding:10px; text-align:left;">Type</th>
+            <th style="padding:10px; text-align:left;">Member/Payee</th>
+            <th style="padding:10px; text-align:left;">Category</th>
+            <th style="padding:10px; text-align:left;">SubCategory</th>
+            <th style="padding:10px; text-align:right;">Amount</th>
+            <th style="padding:10px; text-align:left;">Payment Method</th>
+            <th style="padding:10px; text-align:left;">Check #</th>
+            <th style="padding:10px; text-align:left;">Description</th>
+            <th style="padding:10px; text-align:left;">Pay Date</th>
+            <th style="padding:10px; text-align:left;">Receipt</th>
+            <th style="padding:10px; text-align:left;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+
+      <div style="background:#f0f0f0; padding:12px; text-align:right; font-weight:bold;">
+        Year ${year} Total: <span style="color:#667eea; font-size:16px;">$${yearTotal.toFixed(2)}</span>
+      </div>
+    </div>
+  `
+})
+
+if(sortedYears.length === 0){
+  html = "<p style='color:#666; padding:20px; text-align:center;'>No expenses found. <a href='#' onclick='showAddExpense()' style='color:#667eea;'>Add one now</a></p>"
+}
+
+document.getElementById("expenseContent").innerHTML = html
 
 }
 
@@ -433,24 +452,44 @@ document.getElementById("checkNumberField").style.display = "none"
 
 }
 
-/* PRINT EXPENSE */
+/* PRINT EXPENSES FOR A SPECIFIC YEAR */
 
-function printExpense(){
+function printExpenseYear(year){
+  const table = document.querySelector(`.year${year}`)
+  if(!table){
+    alert("Table not found for year " + year)
+    return
+  }
 
-const table = document.getElementById("expenseTable").outerHTML
+  const tableHtml = table.outerHTML
+  const win = window.open("")
 
-const win = window.open("")
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Church Expense Report - ${year}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { text-align: center; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #667eea; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+      </style>
+    </head>
+    <body>
+      <h2>Church Expense Report - ${year}</h2>
+      ${tableHtml}
+      <p style="text-align:right; margin-top:20px; font-weight:bold;">
+        Generated: ${new Date().toLocaleDateString()}
+      </p>
+    </body>
+    </html>
+  `)
 
-win.document.write(`
-
-<h2>Church Expense Report</h2>
-
-${table}
-
-`)
-
-win.print()
-
+  win.document.close()
+  setTimeout(() => win.print(), 250)
 }
 
 
