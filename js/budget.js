@@ -31,13 +31,14 @@ snap.forEach(doc=>{
     budgetsByYearAndCategory[year] = {}
   }
 
-  budgetsByYear[year].push(b)
+  // Store both data AND document ID
+  budgetsByYear[year].push({...b, docId: doc.id})
 
   if (!budgetsByYearAndCategory[year][category]) {
     budgetsByYearAndCategory[year][category] = []
   }
 
-  budgetsByYearAndCategory[year][category].push(b)
+  budgetsByYearAndCategory[year][category].push({...b, docId: doc.id})
 })
 
 // Create tables for each year
@@ -81,7 +82,7 @@ for (const year of sortedYears) {
       const spent = b.Spent || 0
       const balance = b.Balance || (budgetAmount - spent)
       const status = b.BudgetStatus || "Inactive"
-      const docId = b.id
+      const docId = b.docId
 
       categoryBudgetTotal += budgetAmount
       categorySpentTotal += spent
