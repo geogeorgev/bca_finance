@@ -270,12 +270,15 @@ const budgetSnap = await db.collection("budget")
   .get()
 
 let budgetStatus = "Active" // Default to Active
+let budgetDocForUpdate = null // Store reference for later update
+
 if(!budgetSnap.empty){
   budgetSnap.forEach(doc => {
     const b = doc.data()
     const year = b.BudgetID ? b.BudgetID.split("-")[0] : budgetYear
     if(year === budgetYear){
       budgetStatus = b.BudgetStatus || "Active"
+      budgetDocForUpdate = doc // Save for later use
     }
   })
 }
@@ -350,28 +353,13 @@ await db.collection("expense").add({
 
 /* UPDATE BUDGET BALANCE */
 
-const budgetSnapForUpdate = await db.collection("budget")
-  .where("Category", "==", category)
-  .where("SubCategory", "==", subCategory)
-  .get()
-
-if(!budgetSnapForUpdate.empty){
-  // Find the budget for the selected year
-  let budgetDoc = null
-  budgetSnapForUpdate.forEach(doc=>{
-    const b = doc.data()
-    const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
-    if(year === budgetYear){
-      budgetDoc = doc
-    }
-  })
-
-  if(budgetDoc){
-    const budgetRef = db.collection("budget").doc(budgetDoc.id)
-    const budget = budgetDoc.data()
+if(budgetDocForUpdate){
+  try {
+    const budgetRef = db.collection("budget").doc(budgetDocForUpdate.id)
+    const budget = budgetDocForUpdate.data()
 
     const spent = budget.Spent || 0
-    const total = budget.BudgetAmount
+    const total = budget.BudgetAmount || 0
 
     const newSpent = spent + amount
 
@@ -379,6 +367,9 @@ if(!budgetSnapForUpdate.empty){
       Spent: newSpent,
       Balance: total - newSpent
     })
+  } catch(error){
+    console.error("Error updating budget balance:", error)
+    // Don't block expense save if budget update fails
   }
 }
 
