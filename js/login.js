@@ -326,24 +326,34 @@ const messageDiv = document.getElementById("resetMessage")
 try {
   const userSnap = await db.collection("users")
     .where("Email", "==", email)
+    .where("current_record", "==", true)
     .get()
 
   if(userSnap.empty){
-    messageDiv.innerHTML = '<div style="color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px;">Email not found</div>'
+    messageDiv.innerHTML = '<div style="color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px;">Email not found in system</div>'
     return
   }
 
-  // In production, send reset email here
-  // For now, show success message
-  messageDiv.innerHTML = '<div style="color: #4caf50; background: #e8f5e9; padding: 10px; border-radius: 4px;">Password reset instructions sent to your email</div>'
+  // Use Firebase Authentication to send password reset email
+  try {
+    await firebase.auth().sendPasswordResetEmail(email)
+    messageDiv.innerHTML = '<div style="color: #4caf50; background: #e8f5e9; padding: 10px; border-radius: 4px;">✓ Password reset link sent to your email. Check your inbox and spam folder.</div>'
 
-  setTimeout(() => {
-    showLoginScreen()
-  }, 3000)
+    setTimeout(() => {
+      showLoginScreen()
+    }, 4000)
+  } catch(authError){
+    // Email might not be in Firebase Auth yet
+    if(authError.code === "auth/user-not-found"){
+      messageDiv.innerHTML = '<div style="color: #ff9800; background: #fff3e0; padding: 10px; border-radius: 4px;">⚠️ Email exists in system but not yet registered for login. Please contact your administrator to set up Firebase Authentication.</div>'
+    } else {
+      messageDiv.innerHTML = '<div style="color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px;">Error sending reset email: ' + authError.message + '</div>'
+    }
+  }
 
 } catch(error){
   console.error("Reset error:", error)
-  messageDiv.innerHTML = '<div style="color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px;">An error occurred</div>'
+  messageDiv.innerHTML = '<div style="color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px;">An error occurred: ' + error.message + '</div>'
 }
 
 }
