@@ -22,8 +22,11 @@ for(const doc of snap.docs){
 
 const m = doc.data()
 
-// Check if this member has an assigned role (user)
-const userSnap = await db.collection("users").where("MemberID", "==", doc.id).get()
+// Check if this member has an assigned CURRENT role (user with current_record = true)
+const userSnap = await db.collection("users")
+  .where("MemberID", "==", doc.id)
+  .where("current_record", "==", true)
+  .get()
 let roleDisplay = '<span style="color: #ccc;">✗ No role assigned</span>'
 
 if(!userSnap.empty){
@@ -270,8 +273,11 @@ loadMembers()
 async function assignRoleToMember(memberId, memberName, memberEmail){
 
 try {
-  // Check if member already has a role assigned
-  const existingUserSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+  // Check if member already has a CURRENT role assigned (current_record = true)
+  const existingUserSnap = await db.collection("users")
+    .where("MemberID", "==", memberId)
+    .where("current_record", "==", true)
+    .get()
   let currentRoleDisplay = ""
   let currentRoleValue = ""
 
@@ -330,20 +336,56 @@ if(!role){
 }
 
 try {
-  // Check if user already exists for this member
-  const existingUserSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+  // Check if user already exists for this member (only current records)
+  const existingUserSnap = await db.collection("users")
+    .where("MemberID", "==", memberId)
+    .where("current_record", "==", true)
+    .get()
 
   if(!existingUserSnap.empty){
-    // Update existing user with new role
+    // Update existing user with new role using audit trail
     const userId = existingUserSnap.docs[0].id
+    const oldData = existingUserSnap.docs[0].data()
 
+    // Get current user for audit trail
+    const currentUser = getCurrentUser()
+    const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+
+    // Mark old record as no longer current
     await db.collection("users").doc(userId).update({
-      Role: role
+      current_record: false,
+      deleted_at: new Date(),
+      deleted_by: auditEmail || "system"
+    })
+
+    // Create new record with updated role
+    await db.collection("users").add({
+      Name: oldData.Name,
+      Email: oldData.Email,
+      Role: role,
+      MemberID: memberId,
+      MemberName: memberName,
+      Active: oldData.Active,
+      CreatedDate: oldData.CreatedDate || new Date(),
+      // Audit trail fields
+      current_record: true,
+      previous_record_id: userId,
+      created_at: oldData.created_at || new Date(),
+      created_by: oldData.created_by || "system",
+      updated_at: new Date(),
+      updated_by: auditEmail || "system",
+      action: "updated",
+      changes: {
+        role: oldData.Role !== role ? {old: oldData.Role, new: role} : undefined
+      }
     })
 
     alert(`Role updated to ${role}`)
   } else {
     // Create new user for this member
+    const currentUser = getCurrentUser()
+    const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+
     await db.collection("users").add({
       Name: memberName,
       Email: memberEmail,
@@ -351,7 +393,14 @@ try {
       MemberID: memberId,
       MemberName: memberName,
       Active: true,
-      CreatedDate: new Date()
+      CreatedDate: new Date(),
+      // Audit trail fields
+      current_record: true,
+      created_at: new Date(),
+      created_by: auditEmail || "system",
+      updated_at: new Date(),
+      updated_by: auditEmail || "system",
+      action: "created"
     })
 
     alert(`Role ${role} assigned to ${memberName}`)
@@ -370,7 +419,10 @@ try {
 async function removeRoleFromMember(memberId){
 
 try {
-  const userSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+  const userSnap = await db.collection("users")
+    .where("MemberID", "==", memberId)
+    .where("current_record", "==", true)
+    .get()
 
   if(userSnap.empty){
     alert("No role assigned to this member")
@@ -384,10 +436,19 @@ try {
   const userId = userSnap.docs[0].id
   const userData = userSnap.docs[0].data()
 
-  // Delete the user
-  await db.collection("users").doc(userId).delete()
+  // Get current user for audit trail
+  const currentUser = getCurrentUser()
+  const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
 
-  alert(`Role removed from ${userData.Name}`)
+  // Mark user role as removed (using audit trail approach)
+  await db.collection("users").doc(userId).update({
+    current_record: false,
+    deleted_at: new Date(),
+    deleted_by: auditEmail || "system",
+    action: "deleted"
+  })
+
+  alert(`Role removed from ${userData.Name}.\n\nAudit trail recorded.`)
   loadMembers()
 } catch(error){
   console.error("Error removing role:", error)
