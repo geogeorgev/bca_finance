@@ -23,6 +23,7 @@ show(`
 <th>Description</th>
 <th>Pay Date</th>
 <th>Receipt</th>
+<th>Actions</th>
 </tr>
 </thead>
 
@@ -51,6 +52,10 @@ if (year === currentYear) {
       ? `<a href="${e.ReceiptUrl}" target="_blank" style="color:#2196f3; text-decoration:none;">📎 ${e.ReceiptFileName || 'View'}</a>`
       : '<span style="color:#ccc;">—</span>'
 
+  const actionCell = !e.ReceiptDocID && !e.ReceiptUrl
+    ? `<button onclick="showAddReceiptDialog('${doc.id}', '${e.BudgetYear || 'N/A'}')" style="padding:4px 10px; background:#4caf50; color:white; border:none; border-radius:3px; cursor:pointer; font-size:12px;">Add Receipt</button>`
+    : '<span style="color:#ccc;">—</span>'
+
   rows+=`
 
   <tr>
@@ -74,6 +79,8 @@ if (year === currentYear) {
   <td>${paymentDate ? paymentDate.toLocaleDateString() : ""}</td>
 
   <td>${receiptCell}</td>
+
+  <td>${actionCell}</td>
 
   </tr>
 
@@ -444,6 +451,84 @@ ${table}
 
 win.print()
 
+}
+
+
+/* SHOW ADD RECEIPT DIALOG FOR EXISTING EXPENSE */
+
+async function showAddReceiptDialog(expenseDocId, budgetYear){
+  show(`
+
+<h2>Add Receipt to Expense</h2>
+
+<p style="background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:15px; font-size:13px;">
+  ℹ️ Select a receipt file to attach to this expense.
+</p>
+
+<label>Receipt File <span style="color:red">*</span></label>
+<input type="file" id="lateReceiptFile" accept="image/*,.pdf" style="margin:6px 0; display:block;">
+<small style="color:#666;">Accepted: Images (JPG, PNG) or PDF files (max 700KB)</small>
+
+<br><br>
+
+<button onclick="addReceiptToExpense('${expenseDocId}', '${budgetYear}')" style="padding:8px 16px; background:#4caf50; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Upload Receipt</button>
+<button onclick="loadExpense()" style="padding:8px 16px; background:#999; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
+
+  `)
+}
+
+
+/* ADD RECEIPT TO EXISTING EXPENSE */
+
+async function addReceiptToExpense(expenseDocId, budgetYear){
+  const receiptFile = document.getElementById("lateReceiptFile").files[0]
+
+  if(!receiptFile){
+    alert("Please select a receipt file")
+    return
+  }
+
+  // Max ~700KB file
+  const maxSize = 700 * 1024
+  if(receiptFile.size > maxSize){
+    alert(`Receipt file is too large (${(receiptFile.size/1024).toFixed(0)}KB).\nPlease use a file under 700KB.\nTip: Compress the image or PDF before uploading.`)
+    return
+  }
+
+  try {
+    // Read file as Base64 data URL
+    const base64Data = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = e => resolve(e.target.result)
+      reader.onerror = reject
+      reader.readAsDataURL(receiptFile)
+    })
+
+    // Save to receipts collection
+    const receiptRef = db.collection("receipts").doc()
+    await receiptRef.set({
+      FileName: receiptFile.name,
+      FileType: receiptFile.type,
+      FileSizeKB: Math.round(receiptFile.size / 1024),
+      Data: base64Data,
+      BudgetYear: budgetYear,
+      UploadedAt: new Date()
+    })
+
+    // Update expense with receipt reference
+    await db.collection("expense").doc(expenseDocId).update({
+      ReceiptDocID: receiptRef.id,
+      ReceiptFileName: receiptFile.name
+    })
+
+    console.log("Receipt added to expense:", receiptRef.id)
+    alert("Receipt added successfully!")
+    loadExpense()
+
+  } catch(error){
+    console.error("Error adding receipt:", error)
+    alert("Failed to add receipt. Please try again.")
+  }
 }
 
 
