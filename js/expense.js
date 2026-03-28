@@ -285,10 +285,8 @@ if(!budgetSnap.empty){
 
 // Block if budget is Inactive
 if(budgetStatus === "Inactive"){
-  const confirmAdd = confirm(`⚠️ WARNING: The budget for ${category} - ${subCategory} in ${budgetYear} is INACTIVE.\n\nDo you want to continue adding this expense?\n\nNote: Consider activating the budget in the Budget screen if you need to track expenses.`)
-  if(!confirmAdd){
-    return
-  }
+  alert(`❌ ERROR: The budget for ${category} - ${subCategory} in ${budgetYear} is INACTIVE.\n\nYou cannot add expenses to inactive budgets.\n\nPlease:\n1. Activate the budget in the Budget screen, OR\n2. Choose a different active budget`)
+  return  // Block the save completely
 }
 
 // Upload receipt if file selected

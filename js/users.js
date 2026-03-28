@@ -8,6 +8,7 @@ show(`
 <h2>Users & Roles</h2>
 
 <button onclick="showAddUser()">Add User</button>
+<button onclick="showAuditTrail()">📋 Audit Trail</button>
 
 <br><br>
 
@@ -24,6 +25,9 @@ let html=""
 snap.forEach(doc=>{
 
 const u = doc.data()
+
+// Only show current records (skip audit history)
+if(u.current_record === false) return
 
 const roleColors = {
   "Superuser": "#d32f2f",
@@ -47,7 +51,7 @@ Status: ${u.Active ? "Active" : "Inactive"}<br>
 <br>
 
 <button onclick="editUser('${doc.id}')">Edit</button>
-<button onclick="deleteUser('${doc.id}', '${u.Name}')" style="background: #d32f2f;">Delete</button>
+<button onclick="deleteUser('${doc.id}', '${u.Name}')" style="background: #d32f2f;">Remove Role</button>
 
 </div>
 `
@@ -210,7 +214,7 @@ if(!email){
 }
 
 // Check if member already linked to a user
-const existingSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+const existingSnap = await db.collection("users").where("MemberID", "==", memberId).where("current_record", "==", true).get()
 if(!existingSnap.empty){
   alert("This member already has a user account")
   return
@@ -218,12 +222,16 @@ if(!existingSnap.empty){
 
 // Check if email already exists in users
 if(email){
-  const emailSnap = await db.collection("users").where("Email", "==", email).get()
+  const emailSnap = await db.collection("users").where("Email", "==", email).where("current_record", "==", true).get()
   if(!emailSnap.empty){
     alert("A user with this email already exists")
     return
   }
 }
+
+// Get current user for audit trail
+const currentUser = getCurrentUser()
+const auditEmail = currentUser ? currentUser.email : "system"
 
 await db.collection("users").add({
   Name: name,
@@ -232,7 +240,14 @@ await db.collection("users").add({
   MemberID: memberId,
   MemberName: name,
   Active: active,
-  CreatedDate: new Date()
+  CreatedDate: new Date(),
+  // Audit trail fields
+  current_record: true,
+  created_at: new Date(),
+  created_by: auditEmail,
+  updated_at: new Date(),
+  updated_by: auditEmail,
+  action: "created"
 })
 
 alert("User added successfully!\n\nNEXT STEP: Create a Firebase Authentication account with email: " + (email || "(no email on file)"))
@@ -343,20 +358,50 @@ const name = memberData.Name
 const email = memberData.Email || ""
 
 // Check if another user already uses this member (excluding current)
-const existingSnap = await db.collection("users").where("MemberID", "==", memberId).get()
+const existingSnap = await db.collection("users").where("MemberID", "==", memberId).where("current_record", "==", true).get()
 const conflict = existingSnap.docs.find(d => d.id !== id)
 if(conflict){
   alert("This member is already linked to another user account")
   return
 }
 
+// Get current user for audit trail
+const currentUser = getCurrentUser()
+const auditEmail = currentUser ? currentUser.email : "system"
+
+// Get old record to check what changed
+const oldDoc = await db.collection("users").doc(id).get()
+const oldData = oldDoc.data()
+
+// Mark old record as no longer current
 await db.collection("users").doc(id).update({
+  current_record: false,
+  deleted_at: new Date(),
+  deleted_by: auditEmail
+})
+
+// Create new record with updated info
+await db.collection("users").add({
   Name: name,
   Email: email,
   Role: role,
   MemberID: memberId,
   MemberName: name,
-  Active: active
+  Active: active,
+  CreatedDate: oldData.CreatedDate || new Date(),
+  // Audit trail fields
+  current_record: true,
+  previous_record_id: id,
+  created_at: oldData.created_at || new Date(),
+  created_by: oldData.created_by || "system",
+  updated_at: new Date(),
+  updated_by: auditEmail,
+  action: "updated",
+  changes: {
+    role: oldData.Role !== role ? {old: oldData.Role, new: role} : null,
+    active: oldData.Active !== active ? {old: oldData.Active, new: active} : null,
+    member: oldData.MemberID !== memberId ? {old: oldData.MemberID, new: memberId} : null
+  }
 })
 
 alert("User updated successfully")
@@ -365,17 +410,94 @@ loadUsers()
 }
 
 
-/* DELETE USER */
+/* DELETE/REMOVE USER ROLE */
 
 async function deleteUser(id, name){
 
-if(!confirm(`Are you sure you want to delete user: ${name}?`)){
+if(!confirm(`Are you sure you want to remove the role for: ${name}?`)){
   return
 }
 
-await db.collection("users").doc(id).delete()
+// Get current user for audit trail
+const currentUser = getCurrentUser()
+const auditEmail = currentUser ? currentUser.email : "system"
 
-alert("User deleted")
+// Get the user record
+const userDoc = await db.collection("users").doc(id).get()
+const userData = userDoc.data()
+
+// Mark as no longer current (don't delete)
+await db.collection("users").doc(id).update({
+  current_record: false,
+  deleted_at: new Date(),
+  deleted_by: auditEmail,
+  action: "deleted"
+})
+
+alert(`Role removed for ${name}.\n\nAudit trail recorded.`)
 loadUsers()
+
+}
+
+
+/* SHOW AUDIT TRAIL */
+
+async function showAuditTrail(){
+
+show(`
+
+<h2>Users & Roles - Audit Trail</h2>
+
+<button onclick="loadUsers()" style="padding:8px 16px; background:#999; color:white; border:none; border-radius:4px; cursor:pointer;">← Back to Users</button>
+
+<br><br>
+
+<div id="auditContent"></div>
+
+`)
+
+const snap = await db.collection("users").orderBy("updated_at", "desc").get()
+
+let html = `
+<table border="1" width="100%" style="border-collapse:collapse; margin:20px 0;">
+<thead style="background-color:#667eea; color:white;">
+<tr>
+  <th style="padding:10px; text-align:left;">Name</th>
+  <th style="padding:10px; text-align:left;">Action</th>
+  <th style="padding:10px; text-align:left;">Role</th>
+  <th style="padding:10px; text-align:left;">Status</th>
+  <th style="padding:10px; text-align:left;">Done By</th>
+  <th style="padding:10px; text-align:left;">When</th>
+  <th style="padding:10px; text-align:left;">Current</th>
+</tr>
+</thead>
+<tbody>
+`
+
+snap.forEach(doc => {
+  const u = doc.data()
+  const actionColor = u.action === "created" ? "#4caf50" : u.action === "updated" ? "#2196f3" : u.action === "deleted" ? "#d32f2f" : "#999"
+  const currentStatus = u.current_record ? "✓ Yes" : "✗ No"
+  const timestamp = u.updated_at ? (u.updated_at.toDate ? u.updated_at.toDate().toLocaleString() : new Date(u.updated_at).toLocaleString()) : "N/A"
+
+  html += `
+  <tr>
+    <td style="padding:8px;">${u.Name || "N/A"}</td>
+    <td style="padding:8px; color:white; background-color:${actionColor}; font-weight:bold;">${u.action || "N/A"}</td>
+    <td style="padding:8px;">${u.Role || "N/A"}</td>
+    <td style="padding:8px;">${u.Active ? "Active" : "Inactive"}</td>
+    <td style="padding:8px;">${u.updated_by || "system"}</td>
+    <td style="padding:8px; font-size:12px;">${timestamp}</td>
+    <td style="padding:8px; text-align:center; font-weight:bold;">${currentStatus}</td>
+  </tr>
+  `
+})
+
+html += `
+</tbody>
+</table>
+`
+
+document.getElementById("auditContent").innerHTML = html
 
 }
