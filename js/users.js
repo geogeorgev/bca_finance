@@ -231,7 +231,7 @@ if(email){
 
 // Get current user for audit trail
 const currentUser = getCurrentUser()
-const auditEmail = currentUser ? currentUser.email : "system"
+const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
 
 await db.collection("users").add({
   Name: name,
@@ -244,9 +244,9 @@ await db.collection("users").add({
   // Audit trail fields
   current_record: true,
   created_at: new Date(),
-  created_by: auditEmail,
+  created_by: auditEmail || "system",
   updated_at: new Date(),
-  updated_by: auditEmail,
+  updated_by: auditEmail || "system",
   action: "created"
 })
 
@@ -367,7 +367,7 @@ if(conflict){
 
 // Get current user for audit trail
 const currentUser = getCurrentUser()
-const auditEmail = currentUser ? currentUser.email : "system"
+const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
 
 // Get old record to check what changed
 const oldDoc = await db.collection("users").doc(id).get()
@@ -377,8 +377,14 @@ const oldData = oldDoc.data()
 await db.collection("users").doc(id).update({
   current_record: false,
   deleted_at: new Date(),
-  deleted_by: auditEmail
+  deleted_by: auditEmail || "system"
 })
+
+// Build changes object - only include fields that actually changed
+const changes = {}
+if(oldData.Role !== role) changes.role = {old: oldData.Role, new: role}
+if(oldData.Active !== active) changes.active = {old: oldData.Active, new: active}
+if(oldData.MemberID !== memberId) changes.member = {old: oldData.MemberID, new: memberId}
 
 // Create new record with updated info
 await db.collection("users").add({
@@ -395,13 +401,9 @@ await db.collection("users").add({
   created_at: oldData.created_at || new Date(),
   created_by: oldData.created_by || "system",
   updated_at: new Date(),
-  updated_by: auditEmail,
+  updated_by: auditEmail || "system",
   action: "updated",
-  changes: {
-    role: oldData.Role !== role ? {old: oldData.Role, new: role} : null,
-    active: oldData.Active !== active ? {old: oldData.Active, new: active} : null,
-    member: oldData.MemberID !== memberId ? {old: oldData.MemberID, new: memberId} : null
-  }
+  changes: changes
 })
 
 alert("User updated successfully")
@@ -420,7 +422,7 @@ if(!confirm(`Are you sure you want to remove the role for: ${name}?`)){
 
 // Get current user for audit trail
 const currentUser = getCurrentUser()
-const auditEmail = currentUser ? currentUser.email : "system"
+const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
 
 // Get the user record
 const userDoc = await db.collection("users").doc(id).get()
@@ -430,7 +432,7 @@ const userData = userDoc.data()
 await db.collection("users").doc(id).update({
   current_record: false,
   deleted_at: new Date(),
-  deleted_by: auditEmail,
+  deleted_by: auditEmail || "system",
   action: "deleted"
 })
 
