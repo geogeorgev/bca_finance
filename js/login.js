@@ -10,7 +10,7 @@ document.body.innerHTML = `
   <div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 400px;">
 
     <div style="text-align: center; margin-bottom: 30px;">
-      <h1 style="color: #333; margin: 0 0 5px 0; font-size: 24px;">BCA Finance</h1>
+      <h1 style="color: #333; margin: 0 0 5px 0; font-size: 24px;">BCA Administration</h1>
       <p style="color: #666; margin: 0; font-size: 14px;">Church Administration System</p>
     </div>
 
