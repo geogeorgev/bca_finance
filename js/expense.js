@@ -350,15 +350,15 @@ await db.collection("expense").add({
 
 /* UPDATE BUDGET BALANCE */
 
-const budgetSnap = await db.collection("budget")
+const budgetSnapForUpdate = await db.collection("budget")
   .where("Category", "==", category)
   .where("SubCategory", "==", subCategory)
   .get()
 
-if(!budgetSnap.empty){
+if(!budgetSnapForUpdate.empty){
   // Find the budget for the selected year
   let budgetDoc = null
-  budgetSnap.forEach(doc=>{
+  budgetSnapForUpdate.forEach(doc=>{
     const b = doc.data()
     const year = b.BudgetID ? b.BudgetID.split("-")[0] : new Date().getFullYear().toString()
     if(year === budgetYear){
