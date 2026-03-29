@@ -231,7 +231,7 @@ if(email){
 
 // Get current user for audit trail
 const currentUser = getCurrentUser()
-const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
 
 await db.collection("users").add({
   Name: name,
@@ -367,7 +367,7 @@ if(conflict){
 
 // Get current user for audit trail
 const currentUser = getCurrentUser()
-const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
 
 // Get old record to check what changed
 const oldDoc = await db.collection("users").doc(id).get()
@@ -422,7 +422,7 @@ if(!confirm(`Are you sure you want to remove the role for: ${name}?`)){
 
 // Get current user for audit trail
 const currentUser = getCurrentUser()
-const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
 
 // Get the user record
 const userDoc = await db.collection("users").doc(id).get()

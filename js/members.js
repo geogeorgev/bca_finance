@@ -349,7 +349,7 @@ try {
 
     // Get current user for audit trail
     const currentUser = getCurrentUser()
-    const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+    const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
 
     // Mark old record as no longer current
     await db.collection("users").doc(userId).update({
@@ -384,7 +384,7 @@ try {
   } else {
     // Create new user for this member
     const currentUser = getCurrentUser()
-    const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+    const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
 
     await db.collection("users").add({
       Name: memberName,
@@ -438,7 +438,7 @@ try {
 
   // Get current user for audit trail
   const currentUser = getCurrentUser()
-  const auditEmail = (currentUser && currentUser.email) ? currentUser.email : "system"
+  const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
 
   // Mark user role as removed (using audit trail approach)
   await db.collection("users").doc(userId).update({
