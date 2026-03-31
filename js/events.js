@@ -157,6 +157,15 @@ regSnap.forEach(doc => {
   const checkedInBadge = p.checkedIn ? '✅' : '❌'
   const badgePrintedBadge = p.badgePrinted ? '🖨️' : '❌'
 
+  // Get last edit info
+  let lastEditedBy = "N/A"
+  let lastEditedAt = "Never"
+  if(p.editHistory && p.editHistory.length > 0){
+    const lastEdit = p.editHistory[p.editHistory.length - 1]
+    lastEditedBy = lastEdit.editedBy || "Unknown"
+    lastEditedAt = lastEdit.editedAt || "Unknown"
+  }
+
   participantsList += `
   <tr>
     <td style="padding: 8px;">${p.name}</td>
@@ -167,6 +176,10 @@ regSnap.forEach(doc => {
     <td style="padding: 8px; text-align: right;">$${contribution.toFixed(2)}</td>
     <td style="padding: 8px; text-align: right;">$${calculatedBalance.toFixed(2)}</td>
     <td style="padding: 8px; text-align: center;">${p.foodCoupons || 0}</td>
+    <td style="padding: 8px; font-size: 11px;">
+      <strong>${lastEditedBy}</strong><br>
+      ${lastEditedAt}
+    </td>
     <td style="padding: 8px;">
       <button onclick="editParticipant('${eventId}', '${doc.id}')" style="padding: 4px 8px; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Edit</button>
     </td>
@@ -229,6 +242,7 @@ show(`
   <th style="padding: 10px;">Contribution</th>
   <th style="padding: 10px;">Balance</th>
   <th style="padding: 10px;">Food Coupons</th>
+  <th style="padding: 10px;">Last Edited</th>
   <th style="padding: 10px;">Action</th>
 </tr>
 </thead>
@@ -679,9 +693,55 @@ async function editParticipant(eventId, registrationId){
 const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
 const p = regDoc.data()
 
+// Get event details to calculate balance
+const eventDoc = await db.collection("events").doc(eventId).get()
+const event = eventDoc.data()
+
+const contribution = p.contribution || 0
+const balance = event.fee - contribution
+const hasBalance = balance > 0
+
+// Get current user info for edit tracking
+const user = firebase.auth().currentUser
+const currentUserEmail = user ? user.email : "Unknown"
+const currentTime = new Date().toLocaleString()
+
+// Build edit history
+let editHistoryHtml = ""
+if(p.editHistory && p.editHistory.length > 0){
+  editHistoryHtml = `
+  <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #667eea;">
+    <h4 style="margin-top: 0;">Edit History</h4>
+    <ul style="margin: 5px 0; padding-left: 20px;">
+  `
+  p.editHistory.forEach(edit => {
+    editHistoryHtml += `<li>${edit.editedAt} - ${edit.editedBy}</li>`
+  })
+  editHistoryHtml += `
+    </ul>
+  </div>
+  `
+}
+
+// Build balance payment section if balance exists
+let balancePaymentHtml = ""
+if(hasBalance){
+  balancePaymentHtml = `
+  <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+    <h3 style="margin-top: 0; color: #856404;">⚠️ Outstanding Balance</h3>
+    <p style="margin: 5px 0; font-weight: bold; font-size: 18px;">Balance Due: $${balance.toFixed(2)}</p>
+    <p style="margin: 5px 0; color: #666;">Event Fee: $${event.fee.toFixed(2)} | Paid: $${contribution.toFixed(2)}</p>
+    <button onclick="showPayBalanceForm('${eventId}', '${registrationId}')" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">💳 Pay Balance Now</button>
+  </div>
+  `
+}
+
 show(`
 
 <h2>Edit Participant</h2>
+
+${editHistoryHtml}
+${balancePaymentHtml}
 
 <label>Participant Name:</label>
 <input id="editPartName" value="${p.name}" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
@@ -725,6 +785,139 @@ show(`
 
 }
 
+/* SHOW BALANCE PAYMENT FORM */
+async function showPayBalanceForm(eventId, registrationId){
+
+const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
+const p = regDoc.data()
+
+const eventDoc = await db.collection("events").doc(eventId).get()
+const event = eventDoc.data()
+
+const balance = event.fee - (p.contribution || 0)
+
+show(`
+
+<h2>Pay Outstanding Balance</h2>
+
+<div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
+  <h3 style="margin-top: 0;">Payment Details</h3>
+  <p style="margin: 5px 0;"><strong>Participant:</strong> ${p.name}</p>
+  <p style="margin: 5px 0;"><strong>Event:</strong> ${event.name}</p>
+  <p style="margin: 5px 0;"><strong>Event Fee:</strong> $${event.fee.toFixed(2)}</p>
+  <p style="margin: 5px 0;"><strong>Already Paid:</strong> $${(p.contribution || 0).toFixed(2)}</p>
+  <p style="margin: 5px 0; font-weight: bold; font-size: 16px; color: #d32f2f;"><strong>Balance Due:</strong> $${balance.toFixed(2)}</p>
+</div>
+
+<label>Payment Amount ($):</label>
+<input type="number" id="balancePaymentAmount" value="${balance.toFixed(2)}" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+
+<br><br>
+
+<label>Payment Method:</label>
+<select id="balancePaymentMethod" onchange="toggleBalanceCheckNumberField()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+  <option value="cash">Cash</option>
+  <option value="check">Check</option>
+</select>
+
+<br><br>
+
+<div id="balanceCheckDiv" style="display:none;">
+  <label>Check Number:</label>
+  <input id="balanceCheckNumber" placeholder="Check number" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+  <br><br>
+</div>
+
+<input type="checkbox" id="recordBalanceAsIncome" checked>
+<label style="display: inline;">Record Payment as Income Entry</label>
+
+<br><br>
+
+<label>Payment Notes (Optional):</label>
+<textarea id="balancePaymentNotes" placeholder="e.g., Partial payment, Scheduled payment date, etc." style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px; font-family:Arial;" rows="3"></textarea>
+
+<br><br>
+
+<button onclick="processBalancePayment('${eventId}', '${registrationId}')" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">✅ Process Payment</button>
+<button onclick="editParticipant('${eventId}', '${registrationId}')" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+
+`)
+
+}
+
+/* TOGGLE CHECK NUMBER FIELD FOR BALANCE PAYMENT */
+function toggleBalanceCheckNumberField(){
+  const method = document.getElementById("balancePaymentMethod").value
+  if(method === "check")
+    document.getElementById("balanceCheckDiv").style.display = "block"
+  else
+    document.getElementById("balanceCheckDiv").style.display = "none"
+}
+
+/* PROCESS BALANCE PAYMENT */
+async function processBalancePayment(eventId, registrationId){
+
+const paymentAmount = Number(document.getElementById("balancePaymentAmount").value)
+const paymentMethod = document.getElementById("balancePaymentMethod").value
+const checkNumber = document.getElementById("balanceCheckNumber").value || ""
+const recordAsIncome = document.getElementById("recordBalanceAsIncome").checked
+const paymentNotes = document.getElementById("balancePaymentNotes").value
+
+if(!paymentAmount || paymentAmount <= 0){
+  alert("Please enter a valid payment amount")
+  return
+}
+
+if(paymentMethod === "check" && !checkNumber){
+  alert("Please enter check number")
+  return
+}
+
+// Get participant and event data
+const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
+const p = regDoc.data()
+
+const eventDoc = await db.collection("events").doc(eventId).get()
+const event = eventDoc.data()
+
+// Get current user for tracking
+const user = firebase.auth().currentUser
+const currentUserEmail = user ? user.email : "Unknown"
+const currentTime = new Date().toLocaleString()
+
+// Update participant with new contribution and edit history
+const newContribution = (p.contribution || 0) + paymentAmount
+const editEntry = {
+  editedAt: currentTime,
+  editedBy: currentUserEmail,
+  action: `Balance payment: $${paymentAmount.toFixed(2)}`
+}
+
+const editHistory = p.editHistory || []
+editHistory.push(editEntry)
+
+await db.collection("eventRegistrations").doc(registrationId).update({
+  contribution: newContribution,
+  editHistory: editHistory
+})
+
+// Record payment as income if checkbox is checked
+if(recordAsIncome && paymentAmount > 0){
+  await recordParticipantContributionAsIncome(
+    eventId,
+    p.guardian,
+    paymentAmount,
+    paymentMethod,
+    checkNumber,
+    p.guardianMemberId || null
+  )
+}
+
+alert(`✅ Balance payment of $${paymentAmount.toFixed(2)} processed successfully!${recordAsIncome ? '\nPayment recorded as income.' : ''}`)
+viewEventDetails(eventId)
+
+}
+
 /* UPDATE PARTICIPANT */
 async function updateParticipant(eventId, registrationId){
 
@@ -736,6 +929,24 @@ const emergency = document.getElementById("editPartEmergency").value
 const contribution = Number(document.getElementById("editPartContribution").value) || 0
 const foodCoupons = Number(document.getElementById("editPartFoodCoupons").value) || 0
 
+// Get current user for tracking
+const user = firebase.auth().currentUser
+const currentUserEmail = user ? user.email : "Unknown"
+const currentTime = new Date().toLocaleString()
+
+// Create edit history entry
+const editEntry = {
+  editedAt: currentTime,
+  editedBy: currentUserEmail,
+  action: "Participant information updated"
+}
+
+// Get existing edit history
+const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
+const p = regDoc.data()
+const editHistory = p.editHistory || []
+editHistory.push(editEntry)
+
 await db.collection("eventRegistrations").doc(registrationId).update({
   name: name,
   address: address,
@@ -743,7 +954,8 @@ await db.collection("eventRegistrations").doc(registrationId).update({
   guardian: guardian,
   emergencyContact: emergency,
   contribution: contribution,
-  foodCoupons: foodCoupons
+  foodCoupons: foodCoupons,
+  editHistory: editHistory
 })
 
 alert("Participant updated successfully!")
