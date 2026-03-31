@@ -260,6 +260,9 @@ if(memberId !== "GUEST"){
   })
 }
 
-alert("Collection Saved")
-loadIncome() // Reload the form for next entry
+alert("Collection Saved Successfully! 🎉")
+// Refresh the page to ensure all data is synced
+setTimeout(() => {
+  location.reload()
+}, 500)
 }

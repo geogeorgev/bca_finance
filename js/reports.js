@@ -81,6 +81,8 @@ let reportTitle = `Collection Report - Year ${currentYear}`
 if(reportType === "ytd"){
   startDate = new Date(currentYear, 0, 1)
   endDate = new Date()
+  // Ensure endDate includes the entire day
+  endDate.setHours(23, 59, 59, 999)
   reportTitle = `Collection Report - Year to Date (${currentYear})`
 } else if(reportType === "month"){
   const monthValue = document.getElementById("monthInput").value
