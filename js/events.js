@@ -157,14 +157,10 @@ regSnap.forEach(doc => {
   const checkedInBadge = p.checkedIn ? '✅' : '❌'
   const badgePrintedBadge = p.badgePrinted ? '🖨️' : '❌'
 
-  // Get last edit info
-  let lastEditedBy = "N/A"
-  let lastEditedAt = "Never"
-  if(p.editHistory && p.editHistory.length > 0){
-    const lastEdit = p.editHistory[p.editHistory.length - 1]
-    lastEditedBy = lastEdit.editedBy || "Unknown"
-    lastEditedAt = lastEdit.editedAt || "Unknown"
-  }
+  // Get audit info
+  const auditType = p.auditType || "N/A"
+  const auditEditedBy = p.auditEditedBy || "N/A"
+  const auditEditedAt = p.auditEditedAt || "Never"
 
   participantsList += `
   <tr>
@@ -176,9 +172,14 @@ regSnap.forEach(doc => {
     <td style="padding: 8px; text-align: right;">$${contribution.toFixed(2)}</td>
     <td style="padding: 8px; text-align: right;">$${calculatedBalance.toFixed(2)}</td>
     <td style="padding: 8px; text-align: center;">${p.foodCoupons || 0}</td>
-    <td style="padding: 8px; font-size: 11px;">
-      <strong>${lastEditedBy}</strong><br>
-      ${lastEditedAt}
+    <td style="padding: 8px; font-size: 10px;">
+      <strong style="color: #667eea;">${auditType}</strong>
+    </td>
+    <td style="padding: 8px; font-size: 10px;">
+      <strong>${auditEditedBy}</strong>
+    </td>
+    <td style="padding: 8px; font-size: 10px;">
+      ${auditEditedAt}
     </td>
     <td style="padding: 8px;">
       <button onclick="editParticipant('${eventId}', '${doc.id}')" style="padding: 4px 8px; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">Edit</button>
@@ -242,7 +243,9 @@ show(`
   <th style="padding: 10px;">Contribution</th>
   <th style="padding: 10px;">Balance</th>
   <th style="padding: 10px;">Food Coupons</th>
-  <th style="padding: 10px;">Last Edited</th>
+  <th style="padding: 10px;">Audit Type</th>
+  <th style="padding: 10px;">Edited By</th>
+  <th style="padding: 10px;">Edited At</th>
   <th style="padding: 10px;">Action</th>
 </tr>
 </thead>
@@ -701,24 +704,15 @@ const contribution = p.contribution || 0
 const balance = event.fee - contribution
 const hasBalance = balance > 0
 
-// Get current user info for edit tracking
-const user = firebase.auth().currentUser
-const currentUserEmail = user ? user.email : "Unknown"
-const currentTime = new Date().toLocaleString()
-
-// Build edit history
-let editHistoryHtml = ""
-if(p.editHistory && p.editHistory.length > 0){
-  editHistoryHtml = `
-  <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #667eea;">
-    <h4 style="margin-top: 0;">Edit History</h4>
-    <ul style="margin: 5px 0; padding-left: 20px;">
-  `
-  p.editHistory.forEach(edit => {
-    editHistoryHtml += `<li>${edit.editedAt} - ${edit.editedBy}</li>`
-  })
-  editHistoryHtml += `
-    </ul>
+// Build audit history display
+let auditHistoryHtml = ""
+if(p.auditType || p.auditEditedBy || p.auditEditedAt){
+  auditHistoryHtml = `
+  <div style="background: #f0f4ff; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #667eea;">
+    <h4 style="margin-top: 0; margin-bottom: 8px;">📋 Last Modification</h4>
+    <p style="margin: 3px 0; font-size: 12px;"><strong>Type:</strong> ${p.auditType || 'N/A'}</p>
+    <p style="margin: 3px 0; font-size: 12px;"><strong>Edited By:</strong> ${p.auditEditedBy || 'N/A'}</p>
+    <p style="margin: 3px 0; font-size: 12px;"><strong>Edited At:</strong> ${p.auditEditedAt || 'N/A'}</p>
   </div>
   `
 }
@@ -740,7 +734,7 @@ show(`
 
 <h2>Edit Participant</h2>
 
-${editHistoryHtml}
+${auditHistoryHtml}
 ${balancePaymentHtml}
 
 <label>Participant Name:</label>
@@ -766,10 +760,6 @@ ${balancePaymentHtml}
 <label>Emergency Contact:</label>
 <input id="editPartEmergency" value="${p.emergencyContact || ''}" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
 
-<br><br>
-
-<label>Contribution Amount ($):</label>
-<input type="number" id="editPartContribution" value="${p.contribution || 0}" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
 
 <br><br>
 
@@ -885,20 +875,14 @@ const user = firebase.auth().currentUser
 const currentUserEmail = user ? user.email : "Unknown"
 const currentTime = new Date().toLocaleString()
 
-// Update participant with new contribution and edit history
+// Update participant with new contribution and audit columns
 const newContribution = (p.contribution || 0) + paymentAmount
-const editEntry = {
-  editedAt: currentTime,
-  editedBy: currentUserEmail,
-  action: `Balance payment: $${paymentAmount.toFixed(2)}`
-}
-
-const editHistory = p.editHistory || []
-editHistory.push(editEntry)
 
 await db.collection("eventRegistrations").doc(registrationId).update({
   contribution: newContribution,
-  editHistory: editHistory
+  auditType: `Balance Payment: $${paymentAmount.toFixed(2)}`,
+  auditEditedBy: currentUserEmail,
+  auditEditedAt: currentTime
 })
 
 // Record payment as income if checkbox is checked
@@ -926,7 +910,6 @@ const address = document.getElementById("editPartAddress").value
 const phone = document.getElementById("editPartPhone").value
 const guardian = document.getElementById("editPartGuardian").value
 const emergency = document.getElementById("editPartEmergency").value
-const contribution = Number(document.getElementById("editPartContribution").value) || 0
 const foodCoupons = Number(document.getElementById("editPartFoodCoupons").value) || 0
 
 // Get current user for tracking
@@ -934,28 +917,17 @@ const user = firebase.auth().currentUser
 const currentUserEmail = user ? user.email : "Unknown"
 const currentTime = new Date().toLocaleString()
 
-// Create edit history entry
-const editEntry = {
-  editedAt: currentTime,
-  editedBy: currentUserEmail,
-  action: "Participant information updated"
-}
-
-// Get existing edit history
-const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
-const p = regDoc.data()
-const editHistory = p.editHistory || []
-editHistory.push(editEntry)
-
+// Update with audit columns
 await db.collection("eventRegistrations").doc(registrationId).update({
   name: name,
   address: address,
   phone: phone,
   guardian: guardian,
   emergencyContact: emergency,
-  contribution: contribution,
   foodCoupons: foodCoupons,
-  editHistory: editHistory
+  auditType: "Information Updated",
+  auditEditedBy: currentUserEmail,
+  auditEditedAt: currentTime
 })
 
 alert("Participant updated successfully!")
