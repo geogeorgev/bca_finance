@@ -111,6 +111,59 @@ document.getElementById("checkDiv").style.display="none"
 
 }
 
+/* Get last check number for a member */
+async function getLastCheckNumber(memberId){
+  if(memberId === "GUEST") return null
+
+  const snap = await db.collection("income")
+    .where("MemberID", "==", memberId)
+    .where("Type", "==", "Check")
+    .orderBy("CheckNumber", "desc")
+    .limit(1)
+    .get()
+
+  if(snap.empty) return null
+
+  const lastCheck = snap.docs[0].data().CheckNumber
+  return lastCheck ? parseInt(lastCheck) : null
+}
+
+/* Validate check number sequence */
+async function validateCheckNumber(memberId, currentCheckNumber){
+  const lastCheckNumber = await getLastCheckNumber(memberId)
+
+  if(!lastCheckNumber) return { valid: true, lastNumber: null }
+
+  const currentNum = parseInt(currentCheckNumber)
+  const expectedNum = lastCheckNumber + 1
+
+  return {
+    valid: currentNum === expectedNum,
+    lastNumber: lastCheckNumber,
+    expectedNumber: expectedNum,
+    currentNumber: currentNum
+  }
+}
+
+/* Show check number confirmation dialog */
+function showCheckNumberConfirmation(validation, callback){
+  const { valid, lastNumber, expectedNumber, currentNumber } = validation
+
+  if(valid){
+    // Check number is sequential, proceed with save
+    callback(true)
+    return
+  }
+
+  // Show warning for non-sequential check number
+  const message = `⚠️ Check Number Mismatch!\n\nLast Check: #${lastNumber}\nExpected: #${expectedNumber}\nEntered: #${currentNumber}\n\nDo you want to double-check and proceed anyway?`
+
+  if(confirm(message)){
+    callback(true)
+  } else {
+    callback(false)
+  }
+}
 
 /* Save income */
 
@@ -158,60 +211,55 @@ document.getElementById("collectionDate").value
 const memo =
 document.getElementById("memo").value
 
+/* Validate check number if payment type is Check */
+if(paymentType === "Check" && checkNumber){
+  const validation = await validateCheckNumber(memberId, checkNumber)
 
-/* Generate IncomeID */
+  // Show confirmation dialog if check number is not sequential
+  if(!validation.valid){
+    return showCheckNumberConfirmation(validation, async function(proceed){
+      if(proceed){
+        await saveIncomeToDatabase(memberId, memberName, purpose, paymentType, checkNumber, amount, collectionDate, memo)
+      }
+    })
+  }
+}
 
-const incomeRef = db.collection("income").doc()
-
-const incomeID = incomeRef.id
-
-
-await incomeRef.set({
-
-IncomeID: incomeID,
-
-MemberID: memberId,
-
-MemberName: memberName,
-
-Purpose: purpose,
-
-Type: paymentType,
-
-CheckNumber:
-paymentType==="Check" ? checkNumber : "",
-
-Amount: amount,
-
-//CollectionDate: new Date(collectionDate),
-CollectionDate: collectionDate,
-
-Memo: memo,
-
-//CreateDate: new Date()
-CreateDate: firebase.firestore.FieldValue.serverTimestamp()
-
-})
-
-
-/* Update member contribution */
-
-if(memberId !== "GUEST"){
-
-const memberDoc =
-await db.collection("members").doc(memberId).get()
-
-const total =
-memberDoc.data().TotalContribution || 0
-
-await db.collection("members").doc(memberId).update({
-
-TotalContribution: total + amount
-
-})
+// If check is valid or not a check payment, save directly
+await saveIncomeToDatabase(memberId, memberName, purpose, paymentType, checkNumber, amount, collectionDate, memo)
 
 }
 
-alert("Collection Saved")
+/* Save income to database */
+async function saveIncomeToDatabase(memberId, memberName, purpose, paymentType, checkNumber, amount, collectionDate, memo){
 
+/* Generate IncomeID */
+const incomeRef = db.collection("income").doc()
+const incomeID = incomeRef.id
+
+await incomeRef.set({
+  IncomeID: incomeID,
+  MemberID: memberId,
+  MemberName: memberName,
+  Purpose: purpose,
+  Type: paymentType,
+  CheckNumber: paymentType==="Check" ? checkNumber : "",
+  Amount: amount,
+  CollectionDate: collectionDate,
+  Memo: memo,
+  CreateDate: firebase.firestore.FieldValue.serverTimestamp()
+})
+
+/* Update member contribution */
+if(memberId !== "GUEST"){
+  const memberDoc = await db.collection("members").doc(memberId).get()
+  const total = memberDoc.data().TotalContribution || 0
+
+  await db.collection("members").doc(memberId).update({
+    TotalContribution: total + amount
+  })
+}
+
+alert("Collection Saved")
+loadIncome() // Reload the form for next entry
 }
