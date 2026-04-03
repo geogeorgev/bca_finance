@@ -372,7 +372,19 @@ if(budgetDocForUpdate){
 }
 
 alert("Expense Saved" + (receiptDocId ? " with Receipt" : ""))
-loadExpense()
+
+// After saving, ask if user wants to print check
+const payeeNameToPrint = expenseType === "member" ? memberName : payeeName
+const amountToPrint = amount
+const categoryToPrint = category
+const dateToPrint = payDate
+
+// Show print options if payment method is check
+if(paymentMethod === "check"){
+  showPrintCheckOptions(payeeNameToPrint, amountToPrint, categoryToPrint, dateToPrint, checkNumber)
+} else {
+  loadExpense()
+}
 
 }
 
@@ -626,3 +638,363 @@ async function viewReceipt(receiptDocId){
   }
 }
 
+
+/* SHOW PRINT CHECK OPTIONS DIALOG */
+function showPrintCheckOptions(payeeName, amount, category, date, checkNumber){
+
+  show(`
+
+<h2>Print Check & Envelope</h2>
+
+<div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
+  <h3 style="margin-top: 0;">📋 Check Details</h3>
+  <p style="margin: 5px 0;"><strong>Payee:</strong> ${payeeName}</p>
+  <p style="margin: 5px 0;"><strong>Amount:</strong> $${amount.toFixed(2)}</p>
+  <p style="margin: 5px 0;"><strong>Budget Category:</strong> ${category}</p>
+  <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date(date).toLocaleDateString()}</p>
+  <p style="margin: 5px 0;"><strong>Check #:</strong> ${checkNumber}</p>
+</div>
+
+<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+  <strong>ℹ️ Instructions:</strong>
+  <p style="margin: 5px 0; font-size: 14px;">
+    1. Load your pre-printed check stock into the printer<br>
+    2. Click "Print Check" button below<br>
+    3. A print dialog will appear for your printer settings<br>
+    4. Click Print to print the check details
+  </p>
+</div>
+
+<div style="background: #f0f4ff; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #667eea;">
+  <strong>Envelope Printing:</strong>
+  <p style="margin: 5px 0; font-size: 14px;">
+    You can also print an envelope with payee name and church address.
+  </p>
+</div>
+
+<button onclick="printCheck('${payeeName}', ${amount}, '${category}', '${date}', '${checkNumber}')" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;">
+  🖨️ Print Check
+</button>
+
+<button onclick="printEnvelope('${payeeName}')" style="padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;">
+  ✉️ Print Envelope
+</button>
+
+<button onclick="loadExpense()" style="padding: 10px 20px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+  Done (Skip Printing)
+</button>
+
+  `)
+
+}
+
+/* PRINT CHECK */
+function printCheck(payeeName, amount, category, date, checkNumber){
+
+  const checkDate = new Date(date)
+  const formattedDate = checkDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+
+  const amountInWords = numberToWords(Math.floor(amount))
+  const amountCents = Math.round((amount % 1) * 100)
+
+  const printWindow = window.open('', '_blank')
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Check - ${checkNumber}</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 20px;
+          font-family: 'Courier New', monospace;
+          background: white;
+          color: black;
+        }
+        .check-container {
+          width: 9.5in;
+          height: 3.8in;
+          border: 2px solid #333;
+          padding: 0.3in;
+          margin: 0.5in auto;
+          position: relative;
+          background: white;
+          box-sizing: border-box;
+        }
+        .check-header {
+          text-align: right;
+          font-size: 12px;
+          font-weight: bold;
+          margin-bottom: 0.15in;
+        }
+        .check-info {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.3in;
+          margin-bottom: 0.2in;
+          font-size: 11px;
+        }
+        .date-box {
+          text-align: right;
+          border-bottom: 1px solid #000;
+          padding-right: 0.1in;
+          min-height: 0.25in;
+          display: flex;
+          align-items: flex-end;
+        }
+        .payee-label {
+          font-size: 10px;
+          color: #666;
+        }
+        .payee-name {
+          border-bottom: 1px solid #000;
+          margin-top: 0.05in;
+          padding: 0.05in;
+          min-height: 0.25in;
+          display: flex;
+          align-items: flex-end;
+          font-weight: bold;
+          font-size: 12px;
+        }
+        .amount-box {
+          text-align: right;
+          border-bottom: 1px solid #000;
+          padding-right: 0.1in;
+          min-height: 0.25in;
+          display: flex;
+          align-items: flex-end;
+          font-weight: bold;
+          font-size: 14px;
+        }
+        .amount-words {
+          border-bottom: 1px solid #000;
+          padding-left: 0.1in;
+          min-height: 0.3in;
+          display: flex;
+          align-items: flex-end;
+          font-size: 11px;
+          font-weight: bold;
+        }
+        .memo-section {
+          margin-top: 0.2in;
+          font-size: 10px;
+        }
+        .memo-label {
+          color: #666;
+        }
+        .memo-line {
+          border-bottom: 1px solid #000;
+          padding: 0.05in;
+          min-height: 0.15in;
+          margin-top: 0.03in;
+          font-size: 11px;
+        }
+        .signature-section {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 0.3in;
+          margin-top: 0.2in;
+          font-size: 10px;
+        }
+        .signature-line {
+          border-bottom: 1px solid #000;
+          min-height: 0.3in;
+          text-align: center;
+          padding-top: 0.2in;
+          color: #666;
+        }
+        @media print {
+          body { margin: 0; padding: 0; }
+          .check-container { margin: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="check-container">
+        <div class="check-header">Check #: ${checkNumber}</div>
+
+        <div class="check-info">
+          <div>
+            <div class="payee-label">PAY TO THE ORDER OF</div>
+            <div class="payee-name">${payeeName}</div>
+          </div>
+          <div>
+            <div class="date-box">${formattedDate}</div>
+            <div style="font-size: 9px; color: #666; text-align: right; margin-top: 0.02in;">DATE</div>
+          </div>
+        </div>
+
+        <div class="check-info" style="margin-top: 0.15in;">
+          <div>
+            <div class="amount-words">${amountInWords} and ${amountCents}/100 DOLLARS</div>
+          </div>
+          <div>
+            <div class="amount-box">$${amount.toFixed(2)}</div>
+          </div>
+        </div>
+
+        <div class="memo-section">
+          <div class="memo-label">MEMO/DESCRIPTION</div>
+          <div class="memo-line">${category}</div>
+        </div>
+
+        <div class="signature-section">
+          <div class="signature-line">Authorized Signature</div>
+          <div class="signature-line">Print Name</div>
+          <div style="text-align: center; padding-top: 0.2in; color: #666; font-size: 9px;">
+            <div style="border-bottom: 1px solid #000; min-height: 0.3in;"></div>
+            <div style="margin-top: 0.02in;">Date Signed</div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `)
+
+  printWindow.document.close()
+
+  // Trigger print dialog after content loads
+  setTimeout(() => {
+    printWindow.print()
+  }, 500)
+
+}
+
+/* PRINT ENVELOPE */
+function printEnvelope(payeeName){
+
+  const printWindow = window.open('', '_blank')
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Envelope - ${payeeName}</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 20px;
+          font-family: Arial, sans-serif;
+          background: white;
+          color: black;
+        }
+        .envelope-container {
+          width: 9.5in;
+          height: 4.125in;
+          border: 1px dashed #999;
+          padding: 0.5in;
+          margin: 0.5in auto;
+          position: relative;
+          background: white;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        .return-address {
+          font-size: 10px;
+          line-height: 1.3;
+          margin-bottom: 0.2in;
+        }
+        .return-label {
+          font-size: 8px;
+          color: #666;
+          margin-bottom: 0.05in;
+        }
+        .recipient-address {
+          font-size: 14px;
+          line-height: 1.5;
+          margin-left: 3in;
+        }
+        .recipient-label {
+          font-size: 9px;
+          color: #666;
+          margin-bottom: 0.1in;
+          margin-left: 3in;
+        }
+        @media print {
+          body { margin: 0; padding: 0; }
+          .envelope-container { margin: 0; border: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="envelope-container">
+        <div>
+          <div class="return-label">FROM</div>
+          <div class="return-address">
+            <strong>Boston Christian Assembly</strong><br>
+            (Address to be filled in)
+          </div>
+        </div>
+
+        <div>
+          <div class="recipient-label">TO</div>
+          <div class="recipient-address">
+            <strong>${payeeName}</strong><br>
+            (Address to be filled in)
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `)
+
+  printWindow.document.close()
+
+  // Trigger print dialog after content loads
+  setTimeout(() => {
+    printWindow.print()
+  }, 500)
+
+}
+
+/* CONVERT NUMBER TO WORDS FOR CHECK */
+function numberToWords(num) {
+  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+  const teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  const thousands = ['', 'thousand', 'million', 'billion', 'trillion'];
+
+  if (num === 0) return 'zero';
+
+  let groupIndex = 0;
+  let words = '';
+
+  while (num > 0) {
+    if (num % 1000 !== 0) {
+      words = convertHundreds(num % 1000, ones, teens, tens) + thousands[groupIndex] + ' ' + words;
+    }
+    num = Math.floor(num / 1000);
+    groupIndex++;
+  }
+
+  return words.trim().toUpperCase();
+}
+
+function convertHundreds(num, ones, teens, tens) {
+  let result = '';
+
+  if (num >= 100) {
+    result += ones[Math.floor(num / 100)] + ' hundred ';
+    num %= 100;
+  }
+
+  if (num >= 20) {
+    result += tens[Math.floor(num / 10)] + ' ';
+    if (num % 10 > 0) {
+      result += ones[num % 10] + ' ';
+    }
+  } else if (num >= 10) {
+    result += teens[num - 10] + ' ';
+  } else if (num > 0) {
+    result += ones[num] + ' ';
+  }
+
+  return result;
+}
