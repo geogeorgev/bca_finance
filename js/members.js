@@ -63,6 +63,7 @@ ${roleDisplay}
 
 <button onclick="editMember('${doc.id}')">Edit</button>
 <button onclick="assignRoleToMember('${doc.id}', '${m.Name}', '${m.Email}')" style="background:#2196f3;">🔐 Assign Role</button>
+<button onclick="generateMemberContributionReceipt('${doc.id}')" style="background:#4caf50;">📄 Annual Receipt</button>
 
 </div>
 `
@@ -455,4 +456,38 @@ try {
   alert("Error removing role. Please try again.")
 }
 
+}
+
+/* GENERATE MEMBER CONTRIBUTION RECEIPT */
+async function generateMemberContributionReceipt(memberId){
+  const currentYear = new Date().getFullYear()
+
+  show(`
+
+  <h2>Annual Contribution Receipt</h2>
+
+  <p>Generate a tax contribution receipt for the member.</p>
+
+  <label>Select Tax Year:</label>
+  <input type="number" id="receiptTaxYear" value="${currentYear}" min="2000" max="${currentYear}">
+
+  <br><br>
+
+  <button onclick="generateMemberReceipt('${memberId}')">Generate PDF</button>
+  <button onclick="loadMembers()">Cancel</button>
+
+  `)
+}
+
+/* GENERATE SINGLE MEMBER RECEIPT */
+async function generateMemberReceipt(memberId){
+  const taxYear = parseInt(document.getElementById("receiptTaxYear").value)
+
+  if(!taxYear || taxYear < 2000){
+    alert("Please enter a valid tax year")
+    return
+  }
+
+  // Call the same function from reports.js
+  await generateSingleMemberStatement(memberId, taxYear)
 }

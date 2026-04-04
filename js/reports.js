@@ -923,122 +923,158 @@ contributions.sort((a, b) => {
 // Generate PDF
 const { jsPDF } = window.jspdf
 
+
 const pdf = new jsPDF()
 const pageWidth = pdf.internal.pageSize.getWidth()
 const pageHeight = pdf.internal.pageSize.getHeight()
-let yPosition = 20
+let yPosition = 15
 
-// Add small logo to top right (commented out - logo file not available)
-// addSmallLogoPDF(pdf, pageWidth)
-
-yPosition = 20
-
-// Header - Boston Christian Assembly
-pdf.setFontSize(16)
+// Header with Church Name and Contact Info
+pdf.setFontSize(14)
 pdf.setFont(undefined, "bold")
 pdf.text("Boston Christian Assembly", pageWidth / 2, yPosition, { align: "center" })
 
+yPosition += 5
+
+pdf.setFontSize(9)
+pdf.setFont(undefined, "normal")
+pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9766  |  www.bostonchristian.net", pageWidth / 2, yPosition, { align: "center" })
+
+yPosition += 10
+
+// Salutation
+pdf.setFontSize(10)
+pdf.text("Dear " + member.Name.split(" ")[0] + ",", 20, yPosition)
+
 yPosition += 8
 
-pdf.setFontSize(12)
-pdf.setFont(undefined, "bold")
-pdf.text("ANNUAL CONTRIBUTION STATEMENT", pageWidth / 2, yPosition, { align: "center" })
-
-yPosition += 8
-
+// Letter content
 pdf.setFontSize(10)
 pdf.setFont(undefined, "normal")
-pdf.text(`Tax Year: ${taxYear}`, pageWidth / 2, yPosition, { align: "center" })
+
+const letterText1 = "The pastors and board members of the church thank you for your faithful support for the ongoing Ministries of the church."
+pdf.text(letterText1, 20, yPosition, { maxWidth: pageWidth - 40 })
+yPosition += 12
+
+const letterText2 = `We have prepared the annual contribution for the year ${taxYear} from the records of the church. Please note that item 1 is the amount of total tax-deductible donations that were recorded by the church.`
+pdf.text(letterText2, 20, yPosition, { maxWidth: pageWidth - 40 })
+yPosition += 12
+
+const letterText3 = "It is our prayer that the Lord will continue to bless you in your commitment to give sacrificially for the needs of the church."
+pdf.text(letterText3, 20, yPosition, { maxWidth: pageWidth - 40 })
+yPosition += 12
+
+const letterText4 = "Yours in His Servants in Christ"
+pdf.text(letterText4, 20, yPosition)
+
+yPosition += 12
+
+// Signatures
+pdf.setFontSize(9)
+pdf.setFont(undefined, "normal")
+
+pdf.text("____________________", 20, yPosition)
+yPosition += 5
+pdf.text("Pastor and President", 20, yPosition)
+
+yPosition -= 5
+pdf.text("____________________", pageWidth - 50, yPosition)
+yPosition += 5
+pdf.text("Treasurer", pageWidth - 50, yPosition)
 
 yPosition += 15
 
-// Member Information - simplified (no label)
-pdf.setFont(undefined, "normal")
+// Receipt Table Section
 pdf.setFontSize(10)
+pdf.setFont(undefined, "bold")
+pdf.text("RECIPIENT ORGANIZATION's Name & Address", 20, yPosition)
 
-pdf.text(`${member.Name}`, 20, yPosition)
-yPosition += 7
-
-if(member.Address1){
-  pdf.text(`${member.Address1}`, 20, yPosition)
-  yPosition += 7
-}
-
-if(member.Address2){
-  pdf.text(`${member.Address2}`, 20, yPosition)
-  yPosition += 7
-}
-
-if(member.Address3){
-  pdf.text(`${member.Address3}`, 20, yPosition)
-  yPosition += 7
-}
+const col2X = pageWidth / 2 + 5
+pdf.text("1  Total Tax Deductible Contributions", col2X, yPosition)
 
 yPosition += 5
 
-// Contribution Summary
+pdf.setFont(undefined, "normal")
+pdf.text("The Boston Christian Assembly", 20, yPosition)
+pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition)
+
+yPosition += 5
+
+pdf.text("26 Wellesley Road,", 20, yPosition)
+
+yPosition += 5
+
+pdf.text("Natick, MA 01760", 20, yPosition)
+yPosition += 8
+
 pdf.setFont(undefined, "bold")
-pdf.setFontSize(11)
-pdf.text("Contribution Summary", 20, yPosition)
+pdf.text("RECIPIENT ORGANIZATION's Federal Identification No", 20, yPosition)
+pdf.setFont(undefined, "normal")
+pdf.text(`2  Year`, col2X, yPosition)
+
+yPosition += 5
+
+pdf.text("04-3144979", 20, yPosition)
+pdf.text(taxYear.toString(), col2X, yPosition)
 
 yPosition += 8
 
+pdf.setFont(undefined, "bold")
+pdf.text("Donor's Social Security or C.I.D. No.", 20, yPosition)
 pdf.setFont(undefined, "normal")
-pdf.setFontSize(10)
+pdf.text("3  Annual Contribution Record", col2X, yPosition)
 
-pdf.text(`Total Contributions: $${totalContribution.toFixed(2)}`, 20, yPosition)
+yPosition += 8
+
+pdf.setFont(undefined, "bold")
+pdf.text("Donor's Name (First, Middle, Last)", 20, yPosition)
+pdf.setFont(undefined, "normal")
+pdf.text(member.Name, 20, yPosition + 5)
+pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition + 5)
+
 yPosition += 10
 
-// Contribution Details Table
-pdf.setFontSize(9)
 pdf.setFont(undefined, "bold")
+pdf.text("Street Address", 20, yPosition)
+pdf.setFont(undefined, "normal")
+if(member.Address1){
+  pdf.text(member.Address1, 20, yPosition + 5)
+}
 
-const columnX = [20, 60, 100, 150]
+yPosition += 10
 
-pdf.text("Date", columnX[0], yPosition)
-pdf.text("Purpose", columnX[1], yPosition)
-pdf.text("Amount", columnX[2], yPosition)
+pdf.setFont(undefined, "bold")
+pdf.text("City, State and Zip Code:", 20, yPosition)
+pdf.setFont(undefined, "normal")
+if(member.Address2){
+  pdf.text(member.Address2, 20, yPosition + 5)
+}
+
+yPosition += 12
+
+// Prepared by section
+pdf.setFont(undefined, "bold")
+pdf.text("Prepared by", col2X, yPosition - 15)
+pdf.setFont(undefined, "normal")
+pdf.text("Treasurer", col2X, yPosition - 10)
+pdf.text("Boston Christian Assembly", col2X, yPosition - 5)
+
+yPosition += 15
+
+// Disclaimer
+pdf.setFontSize(8)
+pdf.setFont(undefined, "normal")
+const disclaimerText = "This information has not been submitted to the Internal Revenue Service. This information is not given with the intentions of offering tax advice or an explanation of the law."
+pdf.text(disclaimerText, 20, yPosition, { maxWidth: pageWidth - 40 })
 
 yPosition += 8
 
-pdf.setFont(undefined, "normal")
-
-contributions.forEach(contribution => {
-
-  if(yPosition > pageHeight - 40){
-    pdf.addPage()
-    yPosition = 20
-  }
-
-  const date = new Date(contribution.date)
-  const dateStr = date.toLocaleDateString()
-
-  pdf.text(dateStr, columnX[0], yPosition)
-  pdf.text(contribution.purpose, columnX[1], yPosition)
-  pdf.text(`$${contribution.amount.toFixed(2)}`, columnX[2], yPosition)
-
-  yPosition += 7
-})
-
-// Footer
-pdf.setFont(undefined, "normal")
-pdf.setFontSize(9)
-
-// Left footer
-pdf.text("Treasurer", 20, pageHeight - 15)
-pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
-
-// Right footer
-const treasurerX = pageWidth - 20
-const churchX = pageWidth - 20
-
-pdf.text("Pastor", treasurerX, pageHeight - 15, { align: "right" })
-pdf.text("Boston Christian Assembly", churchX, pageHeight - 10, { align: "right" })
+pdf.text(`Form 11(71-1997) Year End Contribution Receipt     |     File BCA/${taxYear}Receipts`, 20, yPosition)
 
 // Save PDF
-pdf.save(`${member.Name}_Contribution_Statement_${taxYear}.pdf`)
+pdf.save(`${member.Name}_Contribution_Receipt_${taxYear}.pdf`)
 
-alert(`Contribution statement generated for ${member.Name}`)
+alert(`Contribution receipt generated for ${member.Name}`)
 loadReports()
 
 }
@@ -1105,115 +1141,152 @@ for(const member of activeMembers){
   const pdf = new jsPDF()
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
-  let yPosition = 20
+  let yPosition = 15
 
-  // Add small logo to top right (commented out - logo file not available)
-  // addSmallLogoPDF(pdf, pageWidth)
-
-  yPosition = 20
-
-  // Header - Boston Christian Assembly
-  pdf.setFontSize(16)
+  // Header with Church Name and Contact Info
+  pdf.setFontSize(14)
   pdf.setFont(undefined, "bold")
   pdf.text("Boston Christian Assembly", pageWidth / 2, yPosition, { align: "center" })
 
+  yPosition += 5
+
+  pdf.setFontSize(9)
+  pdf.setFont(undefined, "normal")
+  pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9766  |  www.bostonchristian.net", pageWidth / 2, yPosition, { align: "center" })
+
+  yPosition += 10
+
+  // Salutation
+  pdf.setFontSize(10)
+  pdf.text("Dear " + memberData.Name.split(" ")[0] + ",", 20, yPosition)
+
   yPosition += 8
 
-  pdf.setFontSize(12)
-  pdf.setFont(undefined, "bold")
-  pdf.text("ANNUAL CONTRIBUTION STATEMENT", pageWidth / 2, yPosition, { align: "center" })
-
-  yPosition += 8
-
+  // Letter content
   pdf.setFontSize(10)
   pdf.setFont(undefined, "normal")
-  pdf.text(`Tax Year: ${taxYear}`, pageWidth / 2, yPosition, { align: "center" })
+
+  const letterText1 = "The pastors and board members of the church thank you for your faithful support for the ongoing Ministries of the church."
+  pdf.text(letterText1, 20, yPosition, { maxWidth: pageWidth - 40 })
+  yPosition += 12
+
+  const letterText2 = `We have prepared the annual contribution for the year ${taxYear} from the records of the church. Please note that item 1 is the amount of total tax-deductible donations that were recorded by the church.`
+  pdf.text(letterText2, 20, yPosition, { maxWidth: pageWidth - 40 })
+  yPosition += 12
+
+  const letterText3 = "It is our prayer that the Lord will continue to bless you in your commitment to give sacrificially for the needs of the church."
+  pdf.text(letterText3, 20, yPosition, { maxWidth: pageWidth - 40 })
+  yPosition += 12
+
+  const letterText4 = "Yours in His Servants in Christ"
+  pdf.text(letterText4, 20, yPosition)
+
+  yPosition += 12
+
+  // Signatures
+  pdf.setFontSize(9)
+  pdf.setFont(undefined, "normal")
+
+  pdf.text("____________________", 20, yPosition)
+  yPosition += 5
+  pdf.text("Pastor and President", 20, yPosition)
+
+  yPosition -= 5
+  pdf.text("____________________", pageWidth - 50, yPosition)
+  yPosition += 5
+  pdf.text("Treasurer", pageWidth - 50, yPosition)
 
   yPosition += 15
 
-  // Member Information - simplified (no label)
-  pdf.setFont(undefined, "normal")
+  // Receipt Table Section
   pdf.setFontSize(10)
+  pdf.setFont(undefined, "bold")
+  pdf.text("RECIPIENT ORGANIZATION's Name & Address", 20, yPosition)
 
-  pdf.text(`${memberData.Name}`, 20, yPosition)
-  yPosition += 7
-
-  if(memberData.Address1){
-    pdf.text(`${memberData.Address1}`, 20, yPosition)
-    yPosition += 7
-  }
-
-  if(memberData.Address2){
-    pdf.text(`${memberData.Address2}`, 20, yPosition)
-    yPosition += 7
-  }
-
-  if(memberData.Address3){
-    pdf.text(`${memberData.Address3}`, 20, yPosition)
-    yPosition += 7
-  }
+  const col2X = pageWidth / 2 + 5
+  pdf.text("1  Total Tax Deductible Contributions", col2X, yPosition)
 
   yPosition += 5
 
-  // Contribution Summary
+  pdf.setFont(undefined, "normal")
+  pdf.text("The Boston Christian Assembly", 20, yPosition)
+  pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition)
+
+  yPosition += 5
+
+  pdf.text("26 Wellesley Road,", 20, yPosition)
+
+  yPosition += 5
+
+  pdf.text("Natick, MA 01760", 20, yPosition)
+  yPosition += 8
+
   pdf.setFont(undefined, "bold")
-  pdf.setFontSize(11)
-  pdf.text("Contribution Summary", 20, yPosition)
+  pdf.text("RECIPIENT ORGANIZATION's Federal Identification No", 20, yPosition)
+  pdf.setFont(undefined, "normal")
+  pdf.text(`2  Year`, col2X, yPosition)
+
+  yPosition += 5
+
+  pdf.text("04-3144979", 20, yPosition)
+  pdf.text(taxYear.toString(), col2X, yPosition)
 
   yPosition += 8
 
+  pdf.setFont(undefined, "bold")
+  pdf.text("Donor's Social Security or C.I.D. No.", 20, yPosition)
   pdf.setFont(undefined, "normal")
-  pdf.setFontSize(10)
+  pdf.text("3  Annual Contribution Record", col2X, yPosition)
 
-  pdf.text(`Total Contributions: $${totalContribution.toFixed(2)}`, 20, yPosition)
+  yPosition += 8
+
+  pdf.setFont(undefined, "bold")
+  pdf.text("Donor's Name (First, Middle, Last)", 20, yPosition)
+  pdf.setFont(undefined, "normal")
+  pdf.text(memberData.Name, 20, yPosition + 5)
+  pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition + 5)
+
   yPosition += 10
 
-  // Contribution Details Table
-  pdf.setFontSize(9)
   pdf.setFont(undefined, "bold")
+  pdf.text("Street Address", 20, yPosition)
+  pdf.setFont(undefined, "normal")
+  if(memberData.Address1){
+    pdf.text(memberData.Address1, 20, yPosition + 5)
+  }
 
-  pdf.text("Date", 20, yPosition)
-  pdf.text("Purpose", 60, yPosition)
-  pdf.text("Amount", 150, yPosition)
+  yPosition += 10
+
+  pdf.setFont(undefined, "bold")
+  pdf.text("City, State and Zip Code:", 20, yPosition)
+  pdf.setFont(undefined, "normal")
+  if(memberData.Address2){
+    pdf.text(memberData.Address2, 20, yPosition + 5)
+  }
+
+  yPosition += 12
+
+  // Prepared by section
+  pdf.setFont(undefined, "bold")
+  pdf.text("Prepared by", col2X, yPosition - 15)
+  pdf.setFont(undefined, "normal")
+  pdf.text("Treasurer", col2X, yPosition - 10)
+  pdf.text("Boston Christian Assembly", col2X, yPosition - 5)
+
+  yPosition += 15
+
+  // Disclaimer
+  pdf.setFontSize(8)
+  pdf.setFont(undefined, "normal")
+  const disclaimerText = "This information has not been submitted to the Internal Revenue Service. This information is not given with the intentions of offering tax advice or an explanation of the law."
+  pdf.text(disclaimerText, 20, yPosition, { maxWidth: pageWidth - 40 })
 
   yPosition += 8
 
-  pdf.setFont(undefined, "normal")
-
-  contributions.forEach(contribution => {
-
-    if(yPosition > pageHeight - 40){
-      pdf.addPage()
-      yPosition = 20
-    }
-
-    const date = new Date(contribution.date)
-    const dateStr = date.toLocaleDateString()
-
-    pdf.text(dateStr, 20, yPosition)
-    pdf.text(contribution.purpose, 60, yPosition)
-    pdf.text(`$${contribution.amount.toFixed(2)}`, 150, yPosition)
-
-    yPosition += 7
-  })
-
-  // Footer
-  pdf.setFont(undefined, "normal")
-  pdf.setFontSize(9)
-
-  // Left footer
-  pdf.text("Treasurer", 20, pageHeight - 15)
-  pdf.text("Boston Christian Assembly", 20, pageHeight - 10)
-
-  // Right footer
-  const treasurerX = pageWidth - 20
-  const churchX = pageWidth - 20
-
-  pdf.text("Pastor", treasurerX, pageHeight - 15, { align: "right" })
-  pdf.text("Boston Christian Assembly", churchX, pageHeight - 10, { align: "right" })
+  pdf.text(`Form 11(71-1997) Year End Contribution Receipt     |     File BCA/${taxYear}Receipts`, 20, yPosition)
 
   // Save PDF
-  pdf.save(`${memberData.Name}_Contribution_Statement_${taxYear}.pdf`)
+  pdf.save(`${memberData.Name}_Contribution_Receipt_${taxYear}.pdf`)
 
   processedCount++
 }
