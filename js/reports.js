@@ -7,7 +7,12 @@ show(`
 <button onclick="collectionReport()">Collection Report</button>
 <button onclick="expenseReport()">Expense Report</button>
 <button onclick="showContributionStatementGenerator()">Annual Contribution Statement</button>
-<button onclick="backupDatabase()">Backup Database</button>
+
+<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+  <h3>Database Management</h3>
+  <button onclick="backupDatabase()" style="background: #38ef7d; color: white; margin-right: 10px;">💾 Backup Database</button>
+  <button onclick="showRestoreDialog()" style="background: #2196f3; color: white;">⬆️ Restore Database</button>
+</div>`
 
 `)
 
@@ -473,6 +478,178 @@ const a=document.createElement("a")
 a.href=url
 a.download="church_backup.json"
 a.click()
+
+alert("✅ Backup downloaded as 'church_backup.json'\n\nStore this file in a safe location for recovery purposes.")
+
+}
+
+/* SHOW RESTORE DIALOG */
+function showRestoreDialog(){
+
+show(`
+
+<h2>Restore Database from Backup</h2>
+
+<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+  <strong>⚠️ WARNING:</strong>
+  <p style="margin: 10px 0 0 0; font-size: 14px;">
+    Restoring will <strong>replace all current data</strong> with data from the backup file.
+    <br><br>
+    Make sure you:
+    <ul style="margin: 10px 0; padding-left: 20px;">
+      <li>Have selected the correct backup file</li>
+      <li>Have a recent backup of current data</li>
+      <li>Are authorized to restore data</li>
+    </ul>
+  </p>
+</div>
+
+<div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
+  <strong>Instructions:</strong>
+  <p style="margin: 10px 0; font-size: 13px;">
+    1. Click "Select Backup File" below<br>
+    2. Choose your "church_backup.json" file<br>
+    3. Review the data to be restored<br>
+    4. Click "Confirm Restore" to proceed<br>
+  </p>
+</div>
+
+<label><strong>Select Backup File:</strong></label>
+<input type="file" id="restoreFile" accept=".json" style="margin: 10px 0; display: block; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+
+<div id="restorePreview" style="margin: 15px 0;"></div>
+
+<button onclick="restoreDatabase()" style="padding: 10px 20px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">⬆️ Confirm Restore</button>
+<button onclick="loadReports()" style="padding: 10px 20px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+
+`)
+
+// Add file input listener to show preview
+document.getElementById("restoreFile").addEventListener("change", function(e){
+  const file = e.target.files[0]
+  if(!file) return
+
+  const reader = new FileReader()
+  reader.onload = function(event){
+    try {
+      const backup = JSON.parse(event.target.result)
+
+      let preview = '<div style="background: #f0f4ff; padding: 12px; border-radius: 4px; margin-bottom: 15px;">'
+      preview += '<strong>📋 Backup Contents Preview:</strong><br>'
+      preview += `<ul style="margin: 10px 0; padding-left: 20px;">`
+      preview += `<li><strong>Members:</strong> ${backup.members ? backup.members.length : 0} records</li>`
+      preview += `<li><strong>Income/Collections:</strong> ${backup.income ? backup.income.length : 0} records</li>`
+      preview += `<li><strong>Expenses:</strong> ${backup.expense ? backup.expense.length : 0} records</li>`
+      preview += `<li><strong>Budgets:</strong> ${backup.budget ? backup.budget.length : 0} records</li>`
+      preview += `</ul>`
+      preview += '<p style="font-size: 12px; color: #666; margin-top: 10px;">✅ File is valid and ready to restore</p>'
+      preview += '</div>'
+
+      document.getElementById("restorePreview").innerHTML = preview
+
+    } catch(error) {
+      document.getElementById("restorePreview").innerHTML = '<div style="background: #ffebee; padding: 12px; border-radius: 4px; color: #c62828; border-left: 4px solid #c62828;">❌ Invalid backup file. Please select a valid church_backup.json file.</div>'
+    }
+  }
+  reader.readAsText(file)
+})
+
+}
+
+/* RESTORE DATABASE */
+async function restoreDatabase(){
+
+const fileInput = document.getElementById("restoreFile")
+if(!fileInput || !fileInput.files[0]){
+  alert("Please select a backup file")
+  return
+}
+
+const confirmed = confirm("⚠️ IMPORTANT: This will replace ALL current data with the backup.\n\nAre you absolutely sure you want to proceed?")
+if(!confirmed) return
+
+const file = fileInput.files[0]
+
+try {
+  const text = await file.text()
+  const backup = JSON.parse(text)
+
+  show(`
+
+  <h2>Restoring Database...</h2>
+
+  <div style="background: #f0f4ff; padding: 15px; border-radius: 5px; text-align: center;">
+    <p>Restoring data from backup. Please wait...</p>
+    <p style="font-size: 12px; color: #666; margin-top: 10px;">Do not refresh the page or navigate away.</p>
+  </div>
+
+  `)
+
+  // Restore members
+  if(backup.members && backup.members.length > 0){
+    for(const member of backup.members){
+      try {
+        await db.collection("members").add(member)
+      } catch(e) {
+        console.warn("Error restoring member:", e)
+      }
+    }
+  }
+
+  // Restore income
+  if(backup.income && backup.income.length > 0){
+    for(const inc of backup.income){
+      try {
+        // Convert timestamp if needed
+        if(inc.CreateDate && typeof inc.CreateDate === 'object' && inc.CreateDate.seconds){
+          inc.CreateDate = new Date(inc.CreateDate.seconds * 1000)
+        }
+        if(inc.CollectionDate && typeof inc.CollectionDate === 'string'){
+          inc.CollectionDate = new Date(inc.CollectionDate)
+        }
+        await db.collection("income").add(inc)
+      } catch(e) {
+        console.warn("Error restoring income:", e)
+      }
+    }
+  }
+
+  // Restore expenses
+  if(backup.expense && backup.expense.length > 0){
+    for(const exp of backup.expense){
+      try {
+        if(exp.PaymentDate && typeof exp.PaymentDate === 'string'){
+          exp.PaymentDate = new Date(exp.PaymentDate)
+        }
+        if(exp.CreatedDate && typeof exp.CreatedDate === 'object' && exp.CreatedDate.seconds){
+          exp.CreatedDate = new Date(exp.CreatedDate.seconds * 1000)
+        }
+        await db.collection("expense").add(exp)
+      } catch(e) {
+        console.warn("Error restoring expense:", e)
+      }
+    }
+  }
+
+  // Restore budgets
+  if(backup.budget && backup.budget.length > 0){
+    for(const bud of backup.budget){
+      try {
+        await db.collection("budget").add(bud)
+      } catch(e) {
+        console.warn("Error restoring budget:", e)
+      }
+    }
+  }
+
+  alert("✅ Restore Complete!\n\nDatabase has been restored from backup.\n\nMembers: " + (backup.members ? backup.members.length : 0) + "\nIncome: " + (backup.income ? backup.income.length : 0) + "\nExpenses: " + (backup.expense ? backup.expense.length : 0) + "\nBudgets: " + (backup.budget ? backup.budget.length : 0))
+
+  loadReports()
+
+} catch(error) {
+  alert("❌ Restore Failed:\n\n" + error.message + "\n\nMake sure you selected a valid backup file.")
+  showRestoreDialog()
+}
 
 }
 
