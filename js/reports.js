@@ -453,7 +453,8 @@ async function backupDatabase(){
 
 let backup={}
 
-const collections=["members","income","expense","budget"]
+// Include ALL collections in database
+const collections=["members","income","expense","budget","users","events","eventRegistrations","bank_transactions","receipts"]
 
 for(const col of collections){
 
@@ -473,22 +474,52 @@ const blob=new Blob([json],{type:"application/json"})
 
 const url=URL.createObjectURL(blob)
 
+// Generate timestamp in YYYY-MM-DD-HH:MM:SS format
+const now = new Date()
+const year = now.getFullYear()
+const month = String(now.getMonth() + 1).padStart(2, '0')
+const day = String(now.getDate()).padStart(2, '0')
+const hours = String(now.getHours()).padStart(2, '0')
+const minutes = String(now.getMinutes()).padStart(2, '0')
+const seconds = String(now.getSeconds()).padStart(2, '0')
+const timestamp = `${year}-${month}-${day}-${hours}-${minutes}-${seconds}`
+
 const a=document.createElement("a")
 
 a.href=url
-a.download="church_backup.json"
+a.download=`church_backup_${timestamp}.json`
 a.click()
 
-alert("✅ Backup downloaded as 'church_backup.json'\n\nStore this file in a safe location for recovery purposes.")
+alert(`✅ Complete Database Backup Downloaded!\n\nFilename: church_backup_${timestamp}.json\n\nCollections Backed Up:\n✅ Members\n✅ Income\n✅ Expenses\n✅ Budgets\n✅ Users & Roles\n✅ Events\n✅ Event Registrations\n✅ Bank Transactions\n✅ Receipt Files\n\nStore this file in a safe location for recovery purposes.`)
 
 }
 
 /* SHOW RESTORE DIALOG */
 function showRestoreDialog(){
 
+// Check if user has permission to restore (Superuser, Treasurer, or Secretary)
+const user = getCurrentUser()
+
+if(!user){
+  alert("You must be logged in to restore the database")
+  return
+}
+
+const userLevel = user.userLevel
+const allowedRoles = [10, 8, 7] // Superuser (10), Treasurer (8), Secretary (7)
+
+if(!allowedRoles.includes(userLevel)){
+  alert("❌ Access Denied\n\nDatabase restore is restricted to:\n✅ Superuser\n✅ Treasurer\n✅ Secretary\n\nYour role: " + (user.userRole || "Unknown") + " does not have restore permissions.\n\nContact your Superuser or Treasurer to restore the database.")
+  return
+}
+
 show(`
 
 <h2>Restore Database from Backup</h2>
+
+<div style="background: #e8f5e9; padding: 12px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #4caf50;">
+  <strong>✅ Authorized:</strong> You have permission to restore the database
+</div>
 
 <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
   <strong>⚠️ WARNING:</strong>
@@ -508,8 +539,8 @@ show(`
   <strong>Instructions:</strong>
   <p style="margin: 10px 0; font-size: 13px;">
     1. Click "Select Backup File" below<br>
-    2. Choose your "church_backup.json" file<br>
-    3. Review the data to be restored<br>
+    2. Choose your backup file (church_backup_YYYY-MM-DD-HH-MM-SS.json)<br>
+    3. Review the data preview<br>
     4. Click "Confirm Restore" to proceed<br>
   </p>
 </div>
@@ -642,7 +673,86 @@ try {
     }
   }
 
-  alert("✅ Restore Complete!\n\nDatabase has been restored from backup.\n\nMembers: " + (backup.members ? backup.members.length : 0) + "\nIncome: " + (backup.income ? backup.income.length : 0) + "\nExpenses: " + (backup.expense ? backup.expense.length : 0) + "\nBudgets: " + (backup.budget ? backup.budget.length : 0))
+  // Restore users
+  if(backup.users && backup.users.length > 0){
+    for(const user of backup.users){
+      try {
+        if(user.created_at && typeof user.created_at === 'object' && user.created_at.seconds){
+          user.created_at = new Date(user.created_at.seconds * 1000)
+        }
+        if(user.updated_at && typeof user.updated_at === 'object' && user.updated_at.seconds){
+          user.updated_at = new Date(user.updated_at.seconds * 1000)
+        }
+        await db.collection("users").add(user)
+      } catch(e) {
+        console.warn("Error restoring user:", e)
+      }
+    }
+  }
+
+  // Restore events
+  if(backup.events && backup.events.length > 0){
+    for(const evt of backup.events){
+      try {
+        if(evt.startDate && typeof evt.startDate === 'string'){
+          evt.startDate = new Date(evt.startDate)
+        }
+        if(evt.endDate && typeof evt.endDate === 'string'){
+          evt.endDate = new Date(evt.endDate)
+        }
+        await db.collection("events").add(evt)
+      } catch(e) {
+        console.warn("Error restoring event:", e)
+      }
+    }
+  }
+
+  // Restore event registrations
+  if(backup.eventRegistrations && backup.eventRegistrations.length > 0){
+    for(const reg of backup.eventRegistrations){
+      try {
+        if(reg.registeredDate && typeof reg.registeredDate === 'string'){
+          reg.registeredDate = new Date(reg.registeredDate)
+        }
+        await db.collection("eventRegistrations").add(reg)
+      } catch(e) {
+        console.warn("Error restoring event registration:", e)
+      }
+    }
+  }
+
+  // Restore bank transactions
+  if(backup.bank_transactions && backup.bank_transactions.length > 0){
+    for(const trans of backup.bank_transactions){
+      try {
+        if(trans.CreateDate && typeof trans.CreateDate === 'object' && trans.CreateDate.seconds){
+          trans.CreateDate = new Date(trans.CreateDate.seconds * 1000)
+        }
+        await db.collection("bank_transactions").add(trans)
+      } catch(e) {
+        console.warn("Error restoring bank transaction:", e)
+      }
+    }
+  }
+
+  // Restore receipts
+  if(backup.receipts && backup.receipts.length > 0){
+    for(const receipt of backup.receipts){
+      try {
+        if(receipt.UploadedAt && typeof receipt.UploadedAt === 'object' && receipt.UploadedAt.seconds){
+          receipt.UploadedAt = new Date(receipt.UploadedAt.seconds * 1000)
+        }
+        await db.collection("receipts").add(receipt)
+      } catch(e) {
+        console.warn("Error restoring receipt:", e)
+      }
+    }
+  }
+
+  // Summary of restored data
+  const summary = `✅ Complete Database Restore Successful!\n\nRestored Collections:\n✅ Members: ${backup.members ? backup.members.length : 0}\n✅ Income: ${backup.income ? backup.income.length : 0}\n✅ Expenses: ${backup.expense ? backup.expense.length : 0}\n✅ Budgets: ${backup.budget ? backup.budget.length : 0}\n✅ Users: ${backup.users ? backup.users.length : 0}\n✅ Events: ${backup.events ? backup.events.length : 0}\n✅ Registrations: ${backup.eventRegistrations ? backup.eventRegistrations.length : 0}\n✅ Bank Transactions: ${backup.bank_transactions ? backup.bank_transactions.length : 0}\n✅ Receipts: ${backup.receipts ? backup.receipts.length : 0}`
+
+  alert(summary)
 
   loadReports()
 
