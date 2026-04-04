@@ -32,6 +32,10 @@ if(u.current_record === false) return
 const roleColors = {
   "Superuser": "#d32f2f",
   "Admin": "#f57c00",
+  "Pastor": "#9c27b0",
+  "Senior Pastor": "#673ab7",
+  "Associate Pastor": "#b39ddb",
+  "Pastor and President": "#512da8",
   "Treasurer": "#388e3c",
   "Secretary": "#1976d2",
   "Joint Secretary": "#7b1fa2",
@@ -134,6 +138,10 @@ ${memberOptions}
 <option value="">-- Select Role --</option>
 <option value="Superuser">Superuser (Full Access)</option>
 <option value="Admin">Admin (Manage All)</option>
+<option value="Pastor">Pastor</option>
+<option value="Senior Pastor">Senior Pastor</option>
+<option value="Associate Pastor">Associate Pastor</option>
+<option value="Pastor and President">Pastor and President</option>
 <option value="Treasurer">Treasurer (Finance)</option>
 <option value="Secretary">Secretary (Records)</option>
 <option value="Joint Secretary">Joint Secretary (Records)</option>
@@ -225,6 +233,17 @@ if(email){
   const emailSnap = await db.collection("users").where("Email", "==", email).where("current_record", "==", true).get()
   if(!emailSnap.empty){
     alert("A user with this email already exists")
+    return
+  }
+}
+
+// Check for duplicate one-to-one roles
+const oneToOneRoles = ["Pastor and President", "Treasurer", "Secretary"]
+if(oneToOneRoles.includes(role)){
+  const roleSnap = await db.collection("users").where("Role", "==", role).where("current_record", "==", true).get()
+  if(!roleSnap.empty){
+    const existingUser = roleSnap.docs[0].data()
+    alert(`❌ Cannot assign this role!\n\nThe role "${role}" is already assigned to: ${existingUser.Name}\n\nEach of these roles can only be assigned to ONE member:\n✓ Pastor and President\n✓ Treasurer\n✓ Secretary\n\nTo change the assignment, you must first remove the role from ${existingUser.Name}.`)
     return
   }
 }

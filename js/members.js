@@ -34,6 +34,10 @@ if(!userSnap.empty){
   const roleColors = {
     "Superuser": "#d32f2f",
     "Admin": "#f57c00",
+    "Pastor": "#9c27b0",
+    "Senior Pastor": "#673ab7",
+    "Associate Pastor": "#b39ddb",
+    "Pastor and President": "#512da8",
     "Treasurer": "#388e3c",
     "Secretary": "#1976d2",
     "Joint Secretary": "#7b1fa2",
@@ -301,6 +305,10 @@ try {
   <option value="">-- Select Role --</option>
   <option value="Superuser" ${currentRoleValue === "Superuser" ? "selected" : ""}>Superuser (Full Access)</option>
   <option value="Admin" ${currentRoleValue === "Admin" ? "selected" : ""}>Admin (Manage All)</option>
+  <option value="Pastor" ${currentRoleValue === "Pastor" ? "selected" : ""}>Pastor</option>
+  <option value="Senior Pastor" ${currentRoleValue === "Senior Pastor" ? "selected" : ""}>Senior Pastor</option>
+  <option value="Associate Pastor" ${currentRoleValue === "Associate Pastor" ? "selected" : ""}>Associate Pastor</option>
+  <option value="Pastor and President" ${currentRoleValue === "Pastor and President" ? "selected" : ""}>Pastor and President</option>
   <option value="Treasurer" ${currentRoleValue === "Treasurer" ? "selected" : ""}>Treasurer (Finance)</option>
   <option value="Secretary" ${currentRoleValue === "Secretary" ? "selected" : ""}>Secretary (Records)</option>
   <option value="Joint Secretary" ${currentRoleValue === "Joint Secretary" ? "selected" : ""}>Joint Secretary (Records)</option>
@@ -334,6 +342,24 @@ const role = document.getElementById("roleSelect").value
 if(!role){
   alert("Please select a role")
   return
+}
+
+// Check for duplicate one-to-one roles
+const oneToOneRoles = ["Pastor and President", "Treasurer", "Secretary"]
+if(oneToOneRoles.includes(role)){
+  const roleSnap = await db.collection("users")
+    .where("Role", "==", role)
+    .where("current_record", "==", true)
+    .get()
+
+  if(!roleSnap.empty){
+    const existingUser = roleSnap.docs[0].data()
+    // Only prevent if trying to assign to a DIFFERENT member
+    if(existingUser.MemberID !== memberId){
+      alert(`❌ Cannot assign this role!\n\nThe role "${role}" is already assigned to: ${existingUser.Name}\n\nEach of these roles can only be assigned to ONE member:\n✓ Pastor and President\n✓ Treasurer\n✓ Secretary\n\nTo change the assignment, you must first remove the role from ${existingUser.Name}.`)
+      return
+    }
+  }
 }
 
 try {

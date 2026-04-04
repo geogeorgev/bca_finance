@@ -834,7 +834,7 @@ show(`
 <p>Generate tax return contribution statements for members</p>
 
 <label>Select Member:</label>
-<select id="selectedMember">
+<select id="selectedMember" onchange="displayMemberContributions('${currentYear}')">
   <option value="">-- Select a member --</option>
   ${memberOptions}
   <option value="all">-- All Members --</option>
@@ -843,7 +843,14 @@ show(`
 <br><br>
 
 <label>Tax Year:</label>
-<input type="number" id="taxYear" value="${currentYear}">
+<input type="number" id="taxYear" value="${currentYear}" onchange="displayMemberContributions(document.getElementById('taxYear').value)">
+
+<br><br>
+
+<div id="contributionsDisplay" style="margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; display: none;">
+  <h3>Member Contributions for <span id="displayYear">${currentYear}</span></h3>
+  <div id="contributionsList"></div>
+</div>
 
 <br><br>
 
@@ -920,9 +927,11 @@ contributions.sort((a, b) => {
   return dateA - dateB
 })
 
+// Fetch Pastor and Treasurer names
+const { pastorAndPresident, treasurer } = await getPastorAndTreasurerNames()
+
 // Generate PDF
 const { jsPDF } = window.jspdf
-
 
 const pdf = new jsPDF()
 const pageWidth = pdf.internal.pageSize.getWidth()
@@ -969,18 +978,18 @@ pdf.text(letterText4, 20, yPosition)
 
 yPosition += 12
 
-// Signatures
+// Signatures with actual names
 pdf.setFontSize(9)
 pdf.setFont(undefined, "normal")
 
 pdf.text("____________________", 20, yPosition)
 yPosition += 5
-pdf.text("Pastor and President", 20, yPosition)
+pdf.text(pastorAndPresident, 20, yPosition)
 
 yPosition -= 5
 pdf.text("____________________", pageWidth - 50, yPosition)
 yPosition += 5
-pdf.text("Treasurer", pageWidth - 50, yPosition)
+pdf.text(treasurer, pageWidth - 50, yPosition)
 
 yPosition += 15
 
@@ -1135,6 +1144,9 @@ for(const member of activeMembers){
     return dateA - dateB
   })
 
+  // Fetch Pastor and Treasurer names for each member's PDF
+  const { pastorAndPresident, treasurer } = await getPastorAndTreasurerNames()
+
   // Generate PDF for this member
   const { jsPDF } = window.jspdf
 
@@ -1183,18 +1195,18 @@ for(const member of activeMembers){
 
   yPosition += 12
 
-  // Signatures
+  // Signatures with actual names
   pdf.setFontSize(9)
   pdf.setFont(undefined, "normal")
 
   pdf.text("____________________", 20, yPosition)
   yPosition += 5
-  pdf.text("Pastor and President", 20, yPosition)
+  pdf.text(pastorAndPresident, 20, yPosition)
 
   yPosition -= 5
   pdf.text("____________________", pageWidth - 50, yPosition)
   yPosition += 5
-  pdf.text("Treasurer", pageWidth - 50, yPosition)
+  pdf.text(treasurer, pageWidth - 50, yPosition)
 
   yPosition += 15
 
@@ -1295,3 +1307,124 @@ alert(`Generated contribution statements for ${processedCount} members`)
 loadReports()
 
 }
+
+/* DISPLAY MEMBER CONTRIBUTIONS */
+async function displayMemberContributions(year){
+
+const selectedMember = document.getElementById("selectedMember").value
+const taxYear = parseInt(year)
+
+// Hide contributions display if no member selected or "All Members" is selected
+if(!selectedMember || selectedMember === "all"){
+  document.getElementById("contributionsDisplay").style.display = "none"
+  return
+}
+
+// Fetch member data
+const memberDoc = await db.collection("members").doc(selectedMember).get()
+const member = memberDoc.data()
+
+// Fetch contributions for this member
+const incomeSnap = await db.collection("income")
+  .where("MemberID", "==", selectedMember)
+  .get()
+
+let totalContribution = 0
+let contributions = []
+
+incomeSnap.forEach(doc => {
+  const d = doc.data()
+  const dateStr = d.CollectionDate
+  const [year, month, day] = dateStr.split('-')
+  const date = new Date(year, month - 1, day)
+
+  if(date.getFullYear() === taxYear){
+    totalContribution += d.Amount
+    contributions.push({
+      date: d.CollectionDate,
+      purpose: d.Purpose || "Contribution",
+      amount: d.Amount
+    })
+  }
+})
+
+// Sort contributions by date
+contributions.sort((a, b) => {
+  const dateA = new Date(a.date)
+  const dateB = new Date(b.date)
+  return dateA - dateB
+})
+
+// Build contributions table
+let contributionsHTML = ""
+
+if(contributions.length === 0){
+  contributionsHTML = `<p style="color: #666; font-style: italic;">No contributions found for ${taxYear}</p>`
+} else {
+  contributionsHTML = `
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+      <tr style="background: #e8e8e8; font-weight: bold;">
+        <th style="padding: 8px; border: 1px solid #ccc; text-align: left;">Date</th>
+        <th style="padding: 8px; border: 1px solid #ccc; text-align: left;">Purpose</th>
+        <th style="padding: 8px; border: 1px solid #ccc; text-align: right;">Amount</th>
+      </tr>
+  `
+
+  contributions.forEach(contrib => {
+    const date = new Date(contrib.date)
+    const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+    contributionsHTML += `
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ccc;">${dateStr}</td>
+        <td style="padding: 8px; border: 1px solid #ccc;">${contrib.purpose}</td>
+        <td style="padding: 8px; border: 1px solid #ccc; text-align: right;">$${contrib.amount.toFixed(2)}</td>
+      </tr>
+    `
+  })
+
+  contributionsHTML += `
+      <tr style="background: #f0f0f0; font-weight: bold;">
+        <td colspan="2" style="padding: 8px; border: 1px solid #ccc; text-align: right;">TOTAL:</td>
+        <td style="padding: 8px; border: 1px solid #ccc; text-align: right;">$${totalContribution.toFixed(2)}</td>
+      </tr>
+    </table>
+  `
+}
+
+// Display the contributions
+document.getElementById("displayYear").innerText = taxYear
+document.getElementById("contributionsList").innerHTML = contributionsHTML
+document.getElementById("contributionsDisplay").style.display = "block"
+
+}
+
+/* GET PASTOR AND PRESIDENT AND TREASURER NAMES */
+async function getPastorAndTreasurerNames(){
+  try {
+    const usersSnap = await db.collection("users").where("current_record", "==", true).get()
+
+    let pastorAndPresident = "____________________"
+    let treasurer = "____________________"
+
+    usersSnap.forEach(doc => {
+      const user = doc.data()
+      if(user.Role === "Pastor and President"){
+        pastorAndPresident = user.Name || "____________________"
+      } else if(user.Role === "Treasurer"){
+        treasurer = user.Name || "____________________"
+      }
+    })
+
+    return {
+      pastorAndPresident: pastorAndPresident,
+      treasurer: treasurer
+    }
+  } catch(error) {
+    console.error("Error fetching pastor and treasurer names:", error)
+    return {
+      pastorAndPresident: "____________________",
+      treasurer: "____________________"
+    }
+  }
+}
+

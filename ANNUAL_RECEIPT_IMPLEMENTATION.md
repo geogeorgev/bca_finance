@@ -1,7 +1,7 @@
 # Annual Contribution Receipt Implementation
 
 ## Overview
-Successfully implemented a professional annual contribution receipt system that matches the IRS Form 1098-C format, with the ability to generate and display individual contribution receipts for church members.
+Successfully implemented a professional annual contribution receipt system that matches the IRS Form 1098-C format, with the ability to generate and display individual contribution receipts for church members. Added the ability to view individual member contributions directly in the Annual Contribution Statement screen.
 
 ## Features Implemented
 
@@ -23,7 +23,15 @@ Each member card in the Members list now has a "📄 Annual Receipt" button that
 - Generating a professional PDF with the member's contribution data
 - Automatic download with filename: `[MemberName]_Contribution_Receipt_[Year].pdf`
 
-### 3. Batch Generation
+### 3. Annual Contribution Statement Screen Display
+When selecting a member in the Annual Contribution Statement screen:
+- ✅ Automatically displays all contributions for that member for the selected year
+- ✅ Shows a detailed table with Date, Purpose, and Amount columns
+- ✅ Calculates and displays the total contributions
+- ✅ Updates dynamically when changing the member or year selection
+- ✅ Hides the contributions display when "All Members" is selected
+
+### 4. Batch Generation
 The Reports section still supports:
 - Generating receipts for all active members at once
 - Each member receives their own personalized receipt PDF
@@ -32,9 +40,13 @@ The Reports section still supports:
 
 ### 1. `js/reports.js`
 **Changes:**
+- Updated `showContributionStatementGenerator()` function to include:
+  - Member dropdown with `onchange` event listener
+  - Tax year input with `onchange` event listener
+  - Contributions display div (hidden by default)
 - Updated `generateSingleMemberStatement()` function to use professional receipt format
 - Updated `generateAllMembersStatement()` function to use professional receipt format
-- Both functions now generate receipts matching the IRS Form 1098-C layout
+- Added new `displayMemberContributions()` function to show contributions on-screen
 
 **Key Elements:**
 - Church header with address and contact info
@@ -44,6 +56,7 @@ The Reports section still supports:
 - Prepared by section with treasurer details
 - Legal disclaimer about tax information
 - Form reference number
+- Dynamic contributions display with live updates
 
 ### 2. `js/members.js`
 **New Functions Added:**
@@ -57,7 +70,7 @@ The Reports section still supports:
 
 ## User Experience
 
-### For Individual Members:
+### For Individual Members (Members Screen):
 1. Go to Members section
 2. Find the member in the list
 3. Click "📄 Annual Receipt" button
@@ -65,13 +78,20 @@ The Reports section still supports:
 5. Click "Generate PDF"
 6. Receipt automatically downloads as PDF
 
-### For All Members:
+### For Annual Contribution Statement (Reports Screen):
 1. Go to Reports section
 2. Click "Annual Contribution Statement"
-3. Select "All Members" option
-4. Select the tax year
-5. Click "Generate PDF"
-6. All receipts are generated and downloaded
+3. **Select a member from the dropdown** → Contributions immediately display in a table below
+4. **Change the tax year** → Contributions update automatically for the new year
+5. Review the member's contributions in the display
+6. Click "Generate PDF" to create the receipt
+7. Receipt automatically downloads as PDF
+
+### Select "All Members":
+1. Select "All Members" from dropdown
+2. Contributions display hides
+3. Click "Generate PDF" to create receipts for all active members
+4. All receipts are generated and downloaded
 
 ## Receipt Content Details
 
@@ -91,6 +111,13 @@ Boston Christian Assembly
 - Total Tax Deductible Contributions amount
 - Tax Year
 - Annual Contribution Record with member amount
+
+**Contributions Display (on-screen):**
+- Formatted table showing:
+  - **Date**: Contribution date
+  - **Purpose**: Type of contribution/purpose
+  - **Amount**: Dollar amount of each contribution
+  - **TOTAL**: Sum of all contributions for the year
 
 **Footer:**
 - Prepared by: Treasurer, Boston Christian Assembly
@@ -115,12 +142,34 @@ To modify the receipt format, edit in `js/reports.js`:
 - Receipt table layout (lines ~962-1055)
 - Disclaimer text (line ~1062)
 
+To modify the contributions display, edit in `js/reports.js`:
+- Table styling (in `displayMemberContributions()` function around line ~1320-1390)
+- Column headers and formatting
+- Date display format
+
 ## Testing Recommendations
 
-1. **Single Member**: Test generating receipt for one member
-2. **Multiple Years**: Generate receipts for different tax years
-3. **All Members**: Generate batch receipts for all active members
-4. **PDF Validation**: Check:
+1. **Single Member Contributions Display**: 
+   - Select a member → Verify contributions appear
+   - Change year → Verify contributions update
+   - Select "All Members" → Verify contributions hide
+
+2. **Contribution Accuracy**:
+   - Check that all contributions for the selected year appear
+   - Verify the total matches the database records
+   - Test with different year selections
+
+3. **PDF Generation**:
+   - Generate PDF after reviewing contributions
+   - Verify PDF reflects the same total shown on-screen
+
+4. **Multiple Years**: 
+   - Generate receipts for different tax years
+   
+5. **All Members**: 
+   - Generate batch receipts for all active members
+   
+6. **PDF Validation**: Check:
    - Layout and formatting
    - All member data appears correctly
    - Contribution amounts are accurate
@@ -131,4 +180,6 @@ To modify the receipt format, edit in `js/reports.js`:
 - Year selection defaults to current year
 - Contributions are filtered by collection date matching the selected year
 - PDFs are generated in professional format suitable for tax purposes
+- On-screen contributions display updates in real-time as member or year is changed
+- The contributions table is only visible when a specific member is selected (not "All Members")
 
