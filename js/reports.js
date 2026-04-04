@@ -12,7 +12,7 @@ show(`
   <h3>Database Management</h3>
   <button onclick="backupDatabase()" style="background: #38ef7d; color: white; margin-right: 10px;">💾 Backup Database</button>
   <button onclick="showRestoreDialog()" style="background: #2196f3; color: white;">⬆️ Restore Database</button>
-</div>`
+</div>
 
 `)
 
