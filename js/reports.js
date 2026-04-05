@@ -1102,7 +1102,7 @@ yPosition += 5
 
 pdf.setFont(undefined, "normal")
 pdf.text("The Boston Christian Assembly", 20, yPosition)
-pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition)
+pdf.text(`$${totalContribution.toFixed(2)}`, col2X + 30, yPosition)
 
 yPosition += 5
 
@@ -1113,59 +1113,104 @@ yPosition += 5
 pdf.text("Natick, MA 01760", 20, yPosition)
 yPosition += 8
 
+// Draw table grid
+const tableStartY = yPosition - 23
+const tableStartX = 20
+const tableWidth = pageWidth - 40
+const leftColWidth = tableWidth / 2
+const rightColWidth = tableWidth / 2
+
+// Draw table lines
+const lineColor = [0, 0, 0]
+pdf.setDrawColor(...lineColor)
+pdf.setLineWidth(0.5)
+
+// Outer box
+pdf.rect(tableStartX, tableStartY, leftColWidth, 95)
+pdf.rect(tableStartX + leftColWidth, tableStartY, rightColWidth, 95)
+
+// Inner dividing lines
+pdf.line(tableStartX, tableStartY + 18, tableStartX + tableWidth, tableStartY + 18) // After org name
+pdf.line(tableStartX, tableStartY + 36, tableStartX + tableWidth, tableStartY + 36) // After fed ID
+pdf.line(tableStartX, tableStartY + 45, tableStartX + tableWidth, tableStartY + 45) // After SSN
+pdf.line(tableStartX, tableStartY + 63, tableStartX + tableWidth, tableStartY + 63) // After donor name
+pdf.line(tableStartX, tableStartY + 72, tableStartX + tableWidth, tableStartY + 72) // After street
+pdf.line(tableStartX + leftColWidth, tableStartY, tableStartX + leftColWidth, tableStartY + 95) // Middle column divide
+
+// Add text inside table
+pdf.setFontSize(9)
 pdf.setFont(undefined, "bold")
-pdf.text("RECIPIENT ORGANIZATION's Federal Identification No", 20, yPosition)
+pdf.text("RECIPIENT ORGANIZATION's Name & Address", tableStartX + 2, tableStartY + 4)
+
 pdf.setFont(undefined, "normal")
-pdf.text(`2  Year`, col2X, yPosition)
+pdf.text("The Boston Christian Assembly", tableStartX + 2, tableStartY + 10)
+pdf.text("26 Wellesley Road,", tableStartX + 2, tableStartY + 14)
+pdf.text("Natick, MA 01760", tableStartX + 2, tableStartY + 18)
 
-yPosition += 5
-
-pdf.text("04-3144979", 20, yPosition)
-pdf.text(taxYear.toString(), col2X, yPosition)
-
-yPosition += 8
-
+// Column headers on right
 pdf.setFont(undefined, "bold")
-pdf.text("Donor's Social Security or C.I.D. No.", 20, yPosition)
+pdf.setFontSize(8)
+pdf.text("1. Total Tax", tableStartX + leftColWidth + 2, tableStartY + 3)
+pdf.text("Deductible", tableStartX + leftColWidth + 2, tableStartY + 6)
+pdf.text("Contributions", tableStartX + leftColWidth + 2, tableStartY + 9)
+
+// Year header
+pdf.text("2. Year", tableStartX + leftColWidth + 25, tableStartY + 3)
+
+// Annual Contribution Record header
+pdf.text("3. Annual Contribution", tableStartX + leftColWidth + 45, tableStartY + 3)
+pdf.text("Record", tableStartX + leftColWidth + 45, tableStartY + 6)
+
+// Values in right column
 pdf.setFont(undefined, "normal")
-pdf.text("3  Annual Contribution Record", col2X, yPosition)
+pdf.setFontSize(10)
+pdf.text(`$${totalContribution.toFixed(2)}`, tableStartX + leftColWidth + 2, tableStartY + 15)
+pdf.text(taxYear.toString(), tableStartX + leftColWidth + 25, tableStartY + 15)
+pdf.text(`$${totalContribution.toFixed(2)}`, tableStartX + leftColWidth + 45, tableStartY + 15)
 
-yPosition += 8
-
+// Federal ID section
+pdf.setFontSize(9)
 pdf.setFont(undefined, "bold")
-pdf.text("Donor's Name (First, Middle, Last)", 20, yPosition)
+pdf.text("RECIPIENT ORGANIZATION's Federal Identification No.", tableStartX + 2, tableStartY + 32)
+
 pdf.setFont(undefined, "normal")
-pdf.text(member.Name, 20, yPosition + 5)
-pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition + 5)
-
-yPosition += 10
+pdf.text("04-3144979", tableStartX + 2, tableStartY + 38)
 
 pdf.setFont(undefined, "bold")
-pdf.text("Street Address", 20, yPosition)
+pdf.text("Prepared by", tableStartX + leftColWidth + 2, tableStartY + 22)
+pdf.setFont(undefined, "normal")
+pdf.text("Treasurer", tableStartX + leftColWidth + 2, tableStartY + 28)
+pdf.text("Boston Christian Assembly", tableStartX + leftColWidth + 2, tableStartY + 32)
+
+// SSN section
+pdf.setFont(undefined, "bold")
+pdf.setFontSize(9)
+pdf.text("Donor's Social Security or C.I.D. No.", tableStartX + 2, tableStartY + 41)
+
+// Donor Name section
+pdf.setFont(undefined, "bold")
+pdf.setFontSize(9)
+pdf.text("Donor's Name (First, Middle, Last): " + member.Name, tableStartX + 2, tableStartY + 59)
+
+// Street Address section
+pdf.setFont(undefined, "bold")
+pdf.setFontSize(9)
+pdf.text("Street Address:", tableStartX + 2, tableStartY + 68)
 pdf.setFont(undefined, "normal")
 if(member.Address1){
-  pdf.text(member.Address1, 20, yPosition + 5)
+  pdf.text(member.Address1, tableStartX + 2, tableStartY + 72)
 }
 
-yPosition += 10
-
+// City section
 pdf.setFont(undefined, "bold")
-pdf.text("City, State and Zip Code:", 20, yPosition)
+pdf.setFontSize(9)
+pdf.text("City, State and Zip Code:", tableStartX + 2, tableStartY + 81)
 pdf.setFont(undefined, "normal")
 if(member.Address2){
-  pdf.text(member.Address2, 20, yPosition + 5)
+  pdf.text(member.Address2, tableStartX + 2, tableStartY + 85)
 }
 
-yPosition += 12
-
-// Prepared by section
-pdf.setFont(undefined, "bold")
-pdf.text("Prepared by", col2X, yPosition - 15)
-pdf.setFont(undefined, "normal")
-pdf.text("Treasurer", col2X, yPosition - 10)
-pdf.text("Boston Christian Assembly", col2X, yPosition - 5)
-
-yPosition += 15
+yPosition = tableStartY + 100
 
 // Disclaimer
 pdf.setFontSize(8)
@@ -1328,13 +1373,13 @@ for(const member of activeMembers){
   pdf.text("RECIPIENT ORGANIZATION's Name & Address", 20, yPosition)
 
   const col2X = pageWidth / 2 + 5
-  pdf.text("1  Total Tax Deductible Contributions", col2X, yPosition)
+  //...existing table drawing code will go here...
 
   yPosition += 5
 
   pdf.setFont(undefined, "normal")
   pdf.text("The Boston Christian Assembly", 20, yPosition)
-  pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition)
+  pdf.text(`$${totalContribution.toFixed(2)}`, col2X + 30, yPosition)
 
   yPosition += 5
 
@@ -1345,59 +1390,102 @@ for(const member of activeMembers){
   pdf.text("Natick, MA 01760", 20, yPosition)
   yPosition += 8
 
+  // Draw table grid
+  const tableStartY = yPosition - 23
+  const tableStartX = 20
+  const tableWidth = pageWidth - 40
+  const leftColWidth = tableWidth / 2
+  const rightColWidth = tableWidth / 2
+
+  // Draw table lines
+  const lineColor = [0, 0, 0]
+  pdf.setDrawColor(...lineColor)
+  pdf.setLineWidth(0.5)
+
+  // Outer box
+  pdf.rect(tableStartX, tableStartY, leftColWidth, 95)
+  pdf.rect(tableStartX + leftColWidth, tableStartY, rightColWidth, 95)
+
+  // Inner dividing lines
+  pdf.line(tableStartX, tableStartY + 18, tableStartX + tableWidth, tableStartY + 18)
+  pdf.line(tableStartX, tableStartY + 36, tableStartX + tableWidth, tableStartY + 36)
+  pdf.line(tableStartX, tableStartY + 45, tableStartX + tableWidth, tableStartY + 45)
+  pdf.line(tableStartX, tableStartY + 63, tableStartX + tableWidth, tableStartY + 63)
+  pdf.line(tableStartX, tableStartY + 72, tableStartX + tableWidth, tableStartY + 72)
+  pdf.line(tableStartX + leftColWidth, tableStartY, tableStartX + leftColWidth, tableStartY + 95)
+
+  // Add text inside table
+  pdf.setFontSize(9)
   pdf.setFont(undefined, "bold")
-  pdf.text("RECIPIENT ORGANIZATION's Federal Identification No", 20, yPosition)
+  pdf.text("RECIPIENT ORGANIZATION's Name & Address", tableStartX + 2, tableStartY + 4)
+
   pdf.setFont(undefined, "normal")
-  pdf.text(`2  Year`, col2X, yPosition)
+  pdf.text("The Boston Christian Assembly", tableStartX + 2, tableStartY + 10)
+  pdf.text("26 Wellesley Road,", tableStartX + 2, tableStartY + 14)
+  pdf.text("Natick, MA 01760", tableStartX + 2, tableStartY + 18)
 
-  yPosition += 5
-
-  pdf.text("04-3144979", 20, yPosition)
-  pdf.text(taxYear.toString(), col2X, yPosition)
-
-  yPosition += 8
-
+  // Column headers on right
   pdf.setFont(undefined, "bold")
-  pdf.text("Donor's Social Security or C.I.D. No.", 20, yPosition)
+  pdf.setFontSize(8)
+  pdf.text("1. Total Tax", tableStartX + leftColWidth + 2, tableStartY + 3)
+  pdf.text("Deductible", tableStartX + leftColWidth + 2, tableStartY + 6)
+  pdf.text("Contributions", tableStartX + leftColWidth + 2, tableStartY + 9)
+
+  pdf.text("2. Year", tableStartX + leftColWidth + 25, tableStartY + 3)
+
+  pdf.text("3. Annual Contribution", tableStartX + leftColWidth + 45, tableStartY + 3)
+  pdf.text("Record", tableStartX + leftColWidth + 45, tableStartY + 6)
+
+  // Values in right column
   pdf.setFont(undefined, "normal")
-  pdf.text("3  Annual Contribution Record", col2X, yPosition)
+  pdf.setFontSize(10)
+  pdf.text(`$${totalContribution.toFixed(2)}`, tableStartX + leftColWidth + 2, tableStartY + 15)
+  pdf.text(taxYear.toString(), tableStartX + leftColWidth + 25, tableStartY + 15)
+  pdf.text(`$${totalContribution.toFixed(2)}`, tableStartX + leftColWidth + 45, tableStartY + 15)
 
-  yPosition += 8
-
+  // Federal ID section
+  pdf.setFontSize(9)
   pdf.setFont(undefined, "bold")
-  pdf.text("Donor's Name (First, Middle, Last)", 20, yPosition)
+  pdf.text("RECIPIENT ORGANIZATION's Federal Identification No.", tableStartX + 2, tableStartY + 32)
+
   pdf.setFont(undefined, "normal")
-  pdf.text(memberData.Name, 20, yPosition + 5)
-  pdf.text(`$${totalContribution.toFixed(2)}`, col2X, yPosition + 5)
-
-  yPosition += 10
+  pdf.text("04-3144979", tableStartX + 2, tableStartY + 38)
 
   pdf.setFont(undefined, "bold")
-  pdf.text("Street Address", 20, yPosition)
+  pdf.text("Prepared by", tableStartX + leftColWidth + 2, tableStartY + 22)
+  pdf.setFont(undefined, "normal")
+  pdf.text("Treasurer", tableStartX + leftColWidth + 2, tableStartY + 28)
+  pdf.text("Boston Christian Assembly", tableStartX + leftColWidth + 2, tableStartY + 32)
+
+  // SSN section
+  pdf.setFont(undefined, "bold")
+  pdf.setFontSize(9)
+  pdf.text("Donor's Social Security or C.I.D. No.", tableStartX + 2, tableStartY + 41)
+
+  // Donor Name section
+  pdf.setFont(undefined, "bold")
+  pdf.setFontSize(9)
+  pdf.text("Donor's Name (First, Middle, Last): " + memberData.Name, tableStartX + 2, tableStartY + 59)
+
+  // Street Address section
+  pdf.setFont(undefined, "bold")
+  pdf.setFontSize(9)
+  pdf.text("Street Address:", tableStartX + 2, tableStartY + 68)
   pdf.setFont(undefined, "normal")
   if(memberData.Address1){
-    pdf.text(memberData.Address1, 20, yPosition + 5)
+    pdf.text(memberData.Address1, tableStartX + 2, tableStartY + 72)
   }
 
-  yPosition += 10
-
+  // City section
   pdf.setFont(undefined, "bold")
-  pdf.text("City, State and Zip Code:", 20, yPosition)
+  pdf.setFontSize(9)
+  pdf.text("City, State and Zip Code:", tableStartX + 2, tableStartY + 81)
   pdf.setFont(undefined, "normal")
   if(memberData.Address2){
-    pdf.text(memberData.Address2, 20, yPosition + 5)
+    pdf.text(memberData.Address2, tableStartX + 2, tableStartY + 85)
   }
 
-  yPosition += 12
-
-  // Prepared by section
-  pdf.setFont(undefined, "bold")
-  pdf.text("Prepared by", col2X, yPosition - 15)
-  pdf.setFont(undefined, "normal")
-  pdf.text("Treasurer", col2X, yPosition - 10)
-  pdf.text("Boston Christian Assembly", col2X, yPosition - 5)
-
-  yPosition += 15
+  yPosition = tableStartY + 100
 
   // Disclaimer
   pdf.setFontSize(8)
