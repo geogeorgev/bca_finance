@@ -1022,11 +1022,16 @@ let yPosition = 10
 
 // Add logo image (from logo.png file)
 try {
-  const logoImg = new Image()
-  logoImg.src = 'logo.png'
+  const logoResponse = await fetch('logo.png')
+  const logoBlob = await logoResponse.blob()
+  const logoDataUrl = await new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result)
+    reader.readAsDataURL(logoBlob)
+  })
 
-  // Add logo to left side
-  pdf.addImage(logoImg, 'PNG', 12, 10, 25, 25)
+  // Add logo to left side of header
+  pdf.addImage(logoDataUrl, 'PNG', 12, 10, 25, 25)
 } catch(e) {
   console.warn("Logo image not found, continuing without logo")
 }
@@ -1190,14 +1195,22 @@ pdf.text(`$${totalContribution.toFixed(2)}`, rightColX, tableStartY + 15)
 pdf.text(taxYear.toString(), rightColX + 30, tableStartY + 15)
 pdf.text(`$${totalContribution.toFixed(2)}`, rightColX + 55, tableStartY + 15)
 
-// Prepared by section
+// Prepared by section - merged column, centered
 pdf.setFontSize(8)
 pdf.setFont(undefined, "bold")
-pdf.text("Prepared by", rightColX, tableStartY + 28)
 
+// Calculate center position for merged columns (3 columns merged)
+const mergedColCenterX = rightColX + (rightColWidth / 2)
+
+// "Prepared by" text
+pdf.text("Prepared by", mergedColCenterX, tableStartY + 28, { align: "center" })
+
+// Treasurer's full name
 pdf.setFont(undefined, "normal")
-pdf.text("Treasurer", rightColX, tableStartY + 35)
-pdf.text("Boston Christian Assembly", rightColX, tableStartY + 38)
+pdf.text(treasurer, mergedColCenterX, tableStartY + 35, { align: "center" })
+
+// Organization name
+pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 38, { align: "center" })
 
 yPosition = tableStartY + 100
 
@@ -1288,11 +1301,16 @@ for(const member of activeMembers){
 
   // Add logo image (from logo.png file)
   try {
-    const logoImg = new Image()
-    logoImg.src = 'logo.png'
+    const logoResponse = await fetch('logo.png')
+    const logoBlob = await logoResponse.blob()
+    const logoDataUrl = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(logoBlob)
+    })
 
-    // Add logo to left side
-    pdf.addImage(logoImg, 'PNG', 12, 10, 25, 25)
+    // Add logo to left side of header
+    pdf.addImage(logoDataUrl, 'PNG', 12, 10, 25, 25)
   } catch(e) {
     console.warn("Logo image not found, continuing without logo")
   }
@@ -1456,14 +1474,22 @@ for(const member of activeMembers){
   pdf.text(taxYear.toString(), rightColX + 30, tableStartY + 15)
   pdf.text(`$${totalContribution.toFixed(2)}`, rightColX + 55, tableStartY + 15)
 
-  // Prepared by section
+  // Prepared by section - merged column, centered
   pdf.setFontSize(8)
   pdf.setFont(undefined, "bold")
-  pdf.text("Prepared by", rightColX, tableStartY + 28)
 
+  // Calculate center position for merged columns (3 columns merged)
+  const mergedColCenterX = rightColX + (rightColWidth / 2)
+
+  // "Prepared by" text
+  pdf.text("Prepared by", mergedColCenterX, tableStartY + 28, { align: "center" })
+
+  // Treasurer's full name
   pdf.setFont(undefined, "normal")
-  pdf.text("Treasurer", rightColX, tableStartY + 35)
-  pdf.text("Boston Christian Assembly", rightColX, tableStartY + 38)
+  pdf.text(treasurer, mergedColCenterX, tableStartY + 35, { align: "center" })
+
+  // Organization name
+  pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 38, { align: "center" })
 
   yPosition = tableStartY + 100
 
