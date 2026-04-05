@@ -1114,13 +1114,13 @@ pdf.line(tableStartX, tableStartY + 68, tableStartX + tableWidth, tableStartY + 
 pdf.line(tableStartX, tableStartY + 79, tableStartX + tableWidth, tableStartY + 79) // After street address
 pdf.line(tableStartX + leftColWidth, tableStartY, tableStartX + leftColWidth, tableStartY + 95) // Middle column divide
 
-// Inner dividing lines - vertical (for right column sub-sections)
+// Inner dividing lines - vertical (for right column sub-sections, only in header row)
 const rightColStartX = tableStartX + leftColWidth
 const col1Divide = rightColStartX + (rightColWidth / 3)  // Between "Total Tax" and "Year"
 const col2Divide = rightColStartX + (2 * rightColWidth / 3)  // Between "Year" and "Annual Contribution"
 
-pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 95)  // Vertical line 1
-pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 95)  // Vertical line 2
+pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 20)  // Vertical line 1 (header row only)
+pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 20)  // Vertical line 2 (header row only)
 
 // ...existing code...
 pdf.setFontSize(8)
@@ -1380,13 +1380,13 @@ for(const member of activeMembers){
   pdf.line(tableStartX, tableStartY + 79, tableStartX + tableWidth, tableStartY + 79)
   pdf.line(tableStartX + leftColWidth, tableStartY, tableStartX + leftColWidth, tableStartY + 95)
 
-  // Inner dividing lines - vertical (for right column sub-sections)
+  // Inner dividing lines - vertical (for right column sub-sections, only in header row)
   const rightColStartX = tableStartX + leftColWidth
   const col1Divide = rightColStartX + (rightColWidth / 3)  // Between "Total Tax" and "Year"
   const col2Divide = rightColStartX + (2 * rightColWidth / 3)  // Between "Year" and "Annual Contribution"
 
-  pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 95)  // Vertical line 1
-  pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 95)  // Vertical line 2
+  pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 20)  // Vertical line 1 (header row only)
+  pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 20)  // Vertical line 2 (header row only)
 
   // ...existing code...
   pdf.setFontSize(8)
