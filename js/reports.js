@@ -1192,43 +1192,6 @@ pdf.text("Treasurer", rightColX, tableStartY + 35)
 pdf.text("Boston Christian Assembly", rightColX, tableStartY + 38)
 
 yPosition = tableStartY + 100
-if(member.Address2){
-  pdf.text(member.Address2, tableStartX + 2, tableStartY + 94)
-}
-
-// Add text inside table - RIGHT COLUMN
-const rightColX = tableStartX + leftColWidth + 2
-
-// Contribution headers - top section
-pdf.setFontSize(7)
-pdf.setFont(undefined, "bold")
-pdf.text("1. Total Tax", rightColX, tableStartY + 3)
-pdf.text("Deductible", rightColX, tableStartY + 5)
-pdf.text("Contributions", rightColX, tableStartY + 7)
-
-pdf.text("2. Year", rightColX + 30, tableStartY + 3)
-
-pdf.text("3. Annual", rightColX + 55, tableStartY + 3)
-pdf.text("Contribution", rightColX + 55, tableStartY + 5)
-pdf.text("Record", rightColX + 55, tableStartY + 7)
-
-// Contribution values
-pdf.setFontSize(10)
-pdf.setFont(undefined, "bold")
-pdf.text(`$${totalContribution.toFixed(2)}`, rightColX, tableStartY + 15)
-pdf.text(taxYear.toString(), rightColX + 30, tableStartY + 15)
-pdf.text(`$${totalContribution.toFixed(2)}`, rightColX + 55, tableStartY + 15)
-
-// Prepared by section
-pdf.setFontSize(8)
-pdf.setFont(undefined, "bold")
-pdf.text("Prepared by", rightColX, tableStartY + 28)
-
-pdf.setFont(undefined, "normal")
-pdf.text("Treasurer", rightColX, tableStartY + 35)
-pdf.text("Boston Christian Assembly", rightColX, tableStartY + 38)
-
-yPosition = tableStartY + 100
 
 // Disclaimer
 pdf.setFontSize(8)
