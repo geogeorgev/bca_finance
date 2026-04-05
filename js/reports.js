@@ -11,7 +11,8 @@ show(`
 <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
   <h3>Database Management</h3>
   <button onclick="backupDatabase()" style="background: #38ef7d; color: white; margin-right: 10px;">💾 Backup Database</button>
-  <button onclick="showRestoreDialog()" style="background: #2196f3; color: white;">⬆️ Restore Database</button>
+  <button onclick="showRestoreDialog()" style="background: #2196f3; color: white; margin-right: 10px;">⬆️ Restore Database</button>
+  <button onclick="showBackupAuditTrail()" style="background: #ff9800; color: white;">📋 Backup Audit Trail</button>
 </div>
 
 `)
@@ -490,6 +491,37 @@ a.href=url
 a.download=`church_backup_${timestamp}.json`
 a.click()
 
+// Log backup to audit trail
+const currentUser = getCurrentUser()
+const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
+const auditName = (currentUser && currentUser.userName) ? currentUser.userName : "Unknown User"
+
+try {
+  await db.collection("backup_audit_trail").add({
+    action: "BACKUP",
+    timestamp: new Date(),
+    performed_by: auditName,
+    performed_by_email: auditEmail,
+    filename: `church_backup_${timestamp}.json`,
+    tables_backed_up: collections,
+    table_record_counts: {
+      members: backup.members ? backup.members.length : 0,
+      income: backup.income ? backup.income.length : 0,
+      expense: backup.expense ? backup.expense.length : 0,
+      budget: backup.budget ? backup.budget.length : 0,
+      users: backup.users ? backup.users.length : 0,
+      events: backup.events ? backup.events.length : 0,
+      eventRegistrations: backup.eventRegistrations ? backup.eventRegistrations.length : 0,
+      bank_transactions: backup.bank_transactions ? backup.bank_transactions.length : 0,
+      receipts: backup.receipts ? backup.receipts.length : 0
+    },
+    status: "success",
+    details: "Database backup created successfully"
+  })
+} catch(auditError) {
+  console.warn("Error logging backup to audit trail:", auditError)
+}
+
 alert(`✅ Complete Database Backup Downloaded!\n\nFilename: church_backup_${timestamp}.json\n\nCollections Backed Up:\n✅ Members\n✅ Income\n✅ Expenses\n✅ Budgets\n✅ Users & Roles\n✅ Events\n✅ Event Registrations\n✅ Bank Transactions\n✅ Receipt Files\n\nStore this file in a safe location for recovery purposes.`)
 
 }
@@ -749,6 +781,37 @@ try {
     }
   }
 
+  // Log restore to audit trail
+  const currentUser = getCurrentUser()
+  const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
+  const auditName = (currentUser && currentUser.userName) ? currentUser.userName : "Unknown User"
+
+  try {
+    await db.collection("backup_audit_trail").add({
+      action: "RESTORE",
+      timestamp: new Date(),
+      performed_by: auditName,
+      performed_by_email: auditEmail,
+      filename: file.name,
+      tables_restored: Object.keys(backup).filter(key => backup[key] && backup[key].length > 0),
+      table_record_counts: {
+        members: backup.members ? backup.members.length : 0,
+        income: backup.income ? backup.income.length : 0,
+        expense: backup.expense ? backup.expense.length : 0,
+        budget: backup.budget ? backup.budget.length : 0,
+        users: backup.users ? backup.users.length : 0,
+        events: backup.events ? backup.events.length : 0,
+        eventRegistrations: backup.eventRegistrations ? backup.eventRegistrations.length : 0,
+        bank_transactions: backup.bank_transactions ? backup.bank_transactions.length : 0,
+        receipts: backup.receipts ? backup.receipts.length : 0
+      },
+      status: "success",
+      details: "Database restore completed successfully"
+    })
+  } catch(auditError) {
+    console.warn("Error logging restore to audit trail:", auditError)
+  }
+
   // Summary of restored data
   const summary = `✅ Complete Database Restore Successful!\n\nRestored Collections:\n✅ Members: ${backup.members ? backup.members.length : 0}\n✅ Income: ${backup.income ? backup.income.length : 0}\n✅ Expenses: ${backup.expense ? backup.expense.length : 0}\n✅ Budgets: ${backup.budget ? backup.budget.length : 0}\n✅ Users: ${backup.users ? backup.users.length : 0}\n✅ Events: ${backup.events ? backup.events.length : 0}\n✅ Registrations: ${backup.eventRegistrations ? backup.eventRegistrations.length : 0}\n✅ Bank Transactions: ${backup.bank_transactions ? backup.bank_transactions.length : 0}\n✅ Receipts: ${backup.receipts ? backup.receipts.length : 0}`
 
@@ -757,6 +820,25 @@ try {
   loadReports()
 
 } catch(error) {
+  // Log failed restore to audit trail
+  const currentUser = getCurrentUser()
+  const auditEmail = (currentUser && currentUser.userEmail) ? currentUser.userEmail : "system"
+  const auditName = (currentUser && currentUser.userName) ? currentUser.userName : "Unknown User"
+
+  try {
+    await db.collection("backup_audit_trail").add({
+      action: "RESTORE",
+      timestamp: new Date(),
+      performed_by: auditName,
+      performed_by_email: auditEmail,
+      filename: file.name,
+      status: "failed",
+      details: error.message
+    })
+  } catch(auditError) {
+    console.warn("Error logging failed restore to audit trail:", auditError)
+  }
+
   alert("❌ Restore Failed:\n\n" + error.message + "\n\nMake sure you selected a valid backup file.")
   showRestoreDialog()
 }
@@ -936,20 +1018,35 @@ const { jsPDF } = window.jspdf
 const pdf = new jsPDF()
 const pageWidth = pdf.internal.pageSize.getWidth()
 const pageHeight = pdf.internal.pageSize.getHeight()
-let yPosition = 15
+let yPosition = 10
 
-// Header with Church Name and Contact Info
-pdf.setFontSize(14)
+// Add logo image (from logo.png file)
+try {
+  const logoImg = new Image()
+  logoImg.src = 'logo.png'
+
+  // Add logo to left side
+  pdf.addImage(logoImg, 'PNG', 12, 10, 25, 25)
+} catch(e) {
+  console.warn("Logo image not found, continuing without logo")
+}
+
+// Header text - positioned to the right of logo
+yPosition = 12
+
+// Organization Name (bold, larger)
+pdf.setFontSize(13)
 pdf.setFont(undefined, "bold")
-pdf.text("Boston Christian Assembly", pageWidth / 2, yPosition, { align: "center" })
+pdf.text("The Boston Christian Assembly", 42, yPosition)
 
-yPosition += 5
+yPosition += 6
 
+// Contact information (smaller)
 pdf.setFontSize(9)
 pdf.setFont(undefined, "normal")
-pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9766  |  www.bostonchristian.net", pageWidth / 2, yPosition, { align: "center" })
+pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bostonchristian.net", 42, yPosition)
 
-yPosition += 10
+yPosition = 40
 
 // Salutation
 pdf.setFontSize(10)
@@ -1153,20 +1250,35 @@ for(const member of activeMembers){
   const pdf = new jsPDF()
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
-  let yPosition = 15
+  let yPosition = 10
 
-  // Header with Church Name and Contact Info
-  pdf.setFontSize(14)
+  // Add logo image (from logo.png file)
+  try {
+    const logoImg = new Image()
+    logoImg.src = 'logo.png'
+
+    // Add logo to left side
+    pdf.addImage(logoImg, 'PNG', 12, 10, 25, 25)
+  } catch(e) {
+    console.warn("Logo image not found, continuing without logo")
+  }
+
+  // Header text - positioned to the right of logo
+  yPosition = 12
+
+  // Organization Name (bold, larger)
+  pdf.setFontSize(13)
   pdf.setFont(undefined, "bold")
-  pdf.text("Boston Christian Assembly", pageWidth / 2, yPosition, { align: "center" })
+  pdf.text("The Boston Christian Assembly", 42, yPosition)
 
-  yPosition += 5
+  yPosition += 6
 
+  // Contact information (smaller)
   pdf.setFontSize(9)
   pdf.setFont(undefined, "normal")
-  pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9766  |  www.bostonchristian.net", pageWidth / 2, yPosition, { align: "center" })
+  pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bostonchristian.net", 42, yPosition)
 
-  yPosition += 10
+  yPosition = 40
 
   // Salutation
   pdf.setFontSize(10)
@@ -1398,7 +1510,7 @@ document.getElementById("contributionsDisplay").style.display = "block"
 
 }
 
-/* GET PASTOR AND PRESIDENT AND TREASURER NAMES */
+/* GET PASTOR AND TREASURER NAMES */
 async function getPastorAndTreasurerNames(){
   try {
     const usersSnap = await db.collection("users").where("current_record", "==", true).get()
@@ -1428,3 +1540,126 @@ async function getPastorAndTreasurerNames(){
   }
 }
 
+/* SHOW BACKUP AUDIT TRAIL */
+async function showBackupAuditTrail(){
+
+show(`
+
+<h2>Database Management Audit Trail</h2>
+
+<p style="background:#e8f5e9; padding:12px; border-radius:4px; margin-bottom:15px;">
+  📋 View all backup and restore operations performed on the database
+</p>
+
+<button onclick="loadReports()" style="margin-bottom:15px;">← Back to Reports</button>
+
+<div id="auditTrailContent" style="background:#f5f5f5; padding:15px; border-radius:4px;">
+  Loading audit trail data...
+</div>
+
+`)
+
+try {
+  const auditSnap = await db.collection("backup_audit_trail").orderBy("timestamp", "desc").get()
+
+  if(auditSnap.empty){
+    document.getElementById("auditTrailContent").innerHTML = '<p style="color:#666;">No backup or restore operations recorded yet</p>'
+    return
+  }
+
+  let html = `
+    <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+      <thead style="background:#667eea; color:white;">
+        <tr>
+          <th style="padding:10px; text-align:left; border:1px solid #ddd;">Action</th>
+          <th style="padding:10px; text-align:left; border:1px solid #ddd;">Date & Time</th>
+          <th style="padding:10px; text-align:left; border:1px solid #ddd;">Performed By</th>
+          <th style="padding:10px; text-align:left; border:1px solid #ddd;">Email</th>
+          <th style="padding:10px; text-align:left; border:1px solid #ddd;">Status</th>
+          <th style="padding:10px; text-align:left; border:1px solid #ddd;">File</th>
+          <th style="padding:10px; text-align:left; border:1px solid #ddd;">Details</th>
+        </tr>
+      </thead>
+      <tbody>
+  `
+
+  auditSnap.forEach(doc => {
+    const record = doc.data()
+    const action = record.action || "Unknown"
+    const timestamp = record.timestamp ? new Date(record.timestamp.toDate()).toLocaleString() : "N/A"
+    const performedBy = record.performed_by || "Unknown"
+    const email = record.performed_by_email || "N/A"
+    const status = record.status || "Unknown"
+    const statusColor = status === "success" ? "#4caf50" : status === "failed" ? "#d32f2f" : "#666"
+    const filename = record.filename || "N/A"
+    const details = record.details || "N/A"
+
+    const actionColor = action === "BACKUP" ? "#38ef7d" : action === "RESTORE" ? "#2196f3" : "#999"
+
+    html += `
+      <tr>
+        <td style="padding:10px; border:1px solid #ddd;"><span style="background:${actionColor}; color:white; padding:4px 8px; border-radius:3px;">${action}</span></td>
+        <td style="padding:10px; border:1px solid #ddd; font-size:13px;">${timestamp}</td>
+        <td style="padding:10px; border:1px solid #ddd;">${performedBy}</td>
+        <td style="padding:10px; border:1px solid #ddd; font-size:12px;">${email}</td>
+        <td style="padding:10px; border:1px solid #ddd;"><span style="background:${statusColor}; color:white; padding:4px 8px; border-radius:3px; font-size:12px;">${status.toUpperCase()}</span></td>
+        <td style="padding:10px; border:1px solid #ddd; font-size:12px;">${filename}</td>
+        <td style="padding:10px; border:1px solid #ddd; font-size:12px;">${details}</td>
+      </tr>
+    `
+
+    // Add table details if available
+    if(record.action === "BACKUP" && record.table_record_counts){
+      const counts = record.table_record_counts
+      html += `
+        <tr style="background:#f9f9f9;">
+          <td colspan="7" style="padding:10px; border:1px solid #ddd; font-size:12px;">
+            <strong>Tables Backed Up:</strong>
+            Members: ${counts.members || 0},
+            Income: ${counts.income || 0},
+            Expense: ${counts.expense || 0},
+            Budget: ${counts.budget || 0},
+            Users: ${counts.users || 0},
+            Events: ${counts.events || 0},
+            Registrations: ${counts.eventRegistrations || 0},
+            Bank Transactions: ${counts.bank_transactions || 0},
+            Receipts: ${counts.receipts || 0}
+          </td>
+        </tr>
+      `
+    }
+
+    if(record.action === "RESTORE" && record.table_record_counts){
+      const counts = record.table_record_counts
+      html += `
+        <tr style="background:#f9f9f9;">
+          <td colspan="7" style="padding:10px; border:1px solid #ddd; font-size:12px;">
+            <strong>Tables Restored:</strong>
+            Members: ${counts.members || 0},
+            Income: ${counts.income || 0},
+            Expense: ${counts.expense || 0},
+            Budget: ${counts.budget || 0},
+            Users: ${counts.users || 0},
+            Events: ${counts.events || 0},
+            Registrations: ${counts.eventRegistrations || 0},
+            Bank Transactions: ${counts.bank_transactions || 0},
+            Receipts: ${counts.receipts || 0}
+          </td>
+        </tr>
+      `
+    }
+  })
+
+  html += `
+      </tbody>
+    </table>
+  `
+
+  document.getElementById("auditTrailContent").innerHTML = html
+
+} catch(error) {
+  console.error("Error loading audit trail:", error)
+  document.getElementById("auditTrailContent").innerHTML = '<p style="color:#d32f2f;">Error loading audit trail: ' + error.message + '</p>'
+}
+
+}
