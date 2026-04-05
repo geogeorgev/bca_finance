@@ -1106,7 +1106,7 @@ pdf.setLineWidth(0.8)
 pdf.rect(tableStartX, tableStartY, leftColWidth, 95)
 pdf.rect(tableStartX + leftColWidth, tableStartY, rightColWidth, 95)
 
-// Inner dividing lines
+// Inner dividing lines - horizontal
 pdf.line(tableStartX, tableStartY + 23, tableStartX + tableWidth, tableStartY + 23) // After org address
 pdf.line(tableStartX, tableStartY + 40, tableStartX + tableWidth, tableStartY + 40) // After fed ID
 pdf.line(tableStartX, tableStartY + 50, tableStartX + tableWidth, tableStartY + 50) // After SSN
@@ -1114,7 +1114,15 @@ pdf.line(tableStartX, tableStartY + 68, tableStartX + tableWidth, tableStartY + 
 pdf.line(tableStartX, tableStartY + 79, tableStartX + tableWidth, tableStartY + 79) // After street address
 pdf.line(tableStartX + leftColWidth, tableStartY, tableStartX + leftColWidth, tableStartY + 95) // Middle column divide
 
-// Add text inside table - LEFT COLUMN
+// Inner dividing lines - vertical (for right column sub-sections)
+const rightColStartX = tableStartX + leftColWidth
+const col1Divide = rightColStartX + (rightColWidth / 3)  // Between "Total Tax" and "Year"
+const col2Divide = rightColStartX + (2 * rightColWidth / 3)  // Between "Year" and "Annual Contribution"
+
+pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 95)  // Vertical line 1
+pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 95)  // Vertical line 2
+
+// ...existing code...
 pdf.setFontSize(8)
 pdf.setFont(undefined, "bold")
 pdf.text("RECIPIENT ORGANIZATION's", tableStartX + 2, tableStartY + 3)
@@ -1364,7 +1372,7 @@ for(const member of activeMembers){
   pdf.rect(tableStartX, tableStartY, leftColWidth, 95)
   pdf.rect(tableStartX + leftColWidth, tableStartY, rightColWidth, 95)
 
-  // Inner dividing lines
+  // Inner dividing lines - horizontal
   pdf.line(tableStartX, tableStartY + 23, tableStartX + tableWidth, tableStartY + 23)
   pdf.line(tableStartX, tableStartY + 40, tableStartX + tableWidth, tableStartY + 40)
   pdf.line(tableStartX, tableStartY + 50, tableStartX + tableWidth, tableStartY + 50)
@@ -1372,7 +1380,15 @@ for(const member of activeMembers){
   pdf.line(tableStartX, tableStartY + 79, tableStartX + tableWidth, tableStartY + 79)
   pdf.line(tableStartX + leftColWidth, tableStartY, tableStartX + leftColWidth, tableStartY + 95)
 
-  // Add text inside table - LEFT COLUMN
+  // Inner dividing lines - vertical (for right column sub-sections)
+  const rightColStartX = tableStartX + leftColWidth
+  const col1Divide = rightColStartX + (rightColWidth / 3)  // Between "Total Tax" and "Year"
+  const col2Divide = rightColStartX + (2 * rightColWidth / 3)  // Between "Year" and "Annual Contribution"
+
+  pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 95)  // Vertical line 1
+  pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 95)  // Vertical line 2
+
+  // ...existing code...
   pdf.setFontSize(8)
   pdf.setFont(undefined, "bold")
   pdf.text("RECIPIENT ORGANIZATION's", tableStartX + 2, tableStartY + 3)
