@@ -1020,9 +1020,9 @@ const pageWidth = pdf.internal.pageSize.getWidth()
 const pageHeight = pdf.internal.pageSize.getHeight()
 let yPosition = 10
 
-// Add header image (pasted_image_8.png) - full width professional header
+// Add header image (BCA_pdf_header.jpg) - full width professional header
 try {
-  const headerResponse = await fetch('pasted_image_8.png')
+  const headerResponse = await fetch('BCA_pdf_header.jpg')
   const headerBlob = await headerResponse.blob()
   const headerDataUrl = await new Promise((resolve) => {
     const reader = new FileReader()
@@ -1032,7 +1032,7 @@ try {
 
   // Add header image across full width at top
   // Image dimensions: proportional to page width
-  pdf.addImage(headerDataUrl, 'PNG', 10, 10, pageWidth - 20, 35)
+  pdf.addImage(headerDataUrl, 'JPEG', 10, 10, pageWidth - 20, 35)
   yPosition = 50
 } catch(e) {
   console.warn("Header image not found, using text header")
@@ -1325,9 +1325,9 @@ for(const member of activeMembers){
   const pageHeight = pdf.internal.pageSize.getHeight()
   let yPosition = 10
 
-  // Add header image (pasted_image_8.png) - full width professional header
+  // Add header image (BCA_pdf_header.jpg) - full width professional header
   try {
-    const headerResponse = await fetch('pasted_image_8.png')
+    const headerResponse = await fetch('BCA_pdf_header.jpg')
     const headerBlob = await headerResponse.blob()
     const headerDataUrl = await new Promise((resolve) => {
       const reader = new FileReader()
@@ -1336,7 +1336,7 @@ for(const member of activeMembers){
     })
 
     // Add header image across full width at top
-    pdf.addImage(headerDataUrl, 'PNG', 10, 10, pageWidth - 20, 35)
+    pdf.addImage(headerDataUrl, 'JPEG', 10, 10, pageWidth - 20, 35)
     yPosition = 50
   } catch(e) {
     console.warn("Header image not found, using text header")
