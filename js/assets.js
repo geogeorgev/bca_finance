@@ -1,7 +1,19 @@
 /* ===============================
    ASSET MANAGEMENT SYSTEM
    Manages church assets: equipment, furniture, etc.
+   With Categories and Horizontal Table Display
 ================================ */
+
+/* ASSET CATEGORIES */
+const ASSET_CATEGORIES = [
+  "Audio Equipment",
+  "Musical Instruments",
+  "Office Equipment",
+  "Furniture",
+  "Tools & Equipment",
+  "Technology",
+  "Other"
+]
 
 /* LOAD ASSETS PAGE */
 async function loadAssets(){
@@ -38,44 +50,72 @@ displayAssets()
 
 }
 
-/* DISPLAY ALL ASSETS */
+/* DISPLAY ALL ASSETS - HORIZONTAL TABLE */
 async function displayAssets(){
 
-const snap = await db.collection("assets").orderBy("AssetName").get()
+const snap = await db.collection("assets").orderBy("Category").orderBy("AssetName").get()
 
-let html = ""
+if(snap.empty){
+  document.getElementById("assetList").innerHTML = `<p style="color:#999; text-align:center; padding:40px;">No assets found. <a href="javascript:showAddAsset()" style="color:#2196f3;">Add one now</a></p>`
+  return
+}
 
-for(const doc of snap.docs){
+let html = `
+<div style="overflow-x:auto; margin-top:20px;">
+<table style="width:100%; border-collapse:collapse; background:white; box-shadow:0 2px 8px rgba(0,0,0,0.1); border-radius:8px;">
+  <thead>
+    <tr style="background:#667eea; color:white;">
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Asset Name</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Category</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Serial #</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Make / Model</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Year Bought</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Replace Year</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Location</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Cost</th>
+      <th style="padding:12px; text-align:left; border:1px solid #ddd;">Condition</th>
+      <th style="padding:12px; text-align:center; border:1px solid #ddd;">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+`
+
+snap.forEach((doc, index) => {
   const asset = doc.data()
+  const rowColor = index % 2 === 0 ? "#f9f9f9" : "white"
 
-  const assetCard = `
-  <div class="card assetRow" style="margin-bottom:15px;">
-    <div style="display:flex; justify-content:space-between; align-items:start;">
-      <div style="flex:1;">
-        <b style="font-size:16px; color:#333;">${asset.AssetName}</b><br>
-        <span style="color:#666; font-size:13px;">Serial Number: ${asset.SerialNumber || "N/A"}</span><br>
-        <span style="color:#666; font-size:13px;">Make: ${asset.Make || "N/A"} | Model: ${asset.Model || "N/A"}</span><br>
-        <span style="color:#666; font-size:13px;">Year Bought: ${asset.YearBought || "N/A"}</span><br>
-        <span style="color:#666; font-size:13px;">Replace Year: ${asset.ReplaceYear || "N/A"}</span><br>
-        ${asset.Location ? `<span style="color:#999; font-size:12px;">📍 Location: ${asset.Location}</span><br>` : ""}
-        ${asset.Cost ? `<span style="color:#999; font-size:12px;">💰 Cost: $${asset.Cost}</span><br>` : ""}
-        ${asset.Condition ? `<span style="color:#999; font-size:12px;">Condition: ${asset.Condition}</span><br>` : ""}
-        ${asset.Notes ? `<span style="color:#999; font-size:12px;">Notes: ${asset.Notes}</span><br>` : ""}
-      </div>
-      <div>
-        <button onclick="editAsset('${doc.id}')" style="background:#2196f3; margin:5px;">✏️ Edit</button>
-        <button onclick="deleteAsset('${doc.id}', '${asset.AssetName}')" style="background:#f44336; margin:5px;">🗑️ Delete</button>
-      </div>
-    </div>
-  </div>
+  const conditionColor = {
+    "Excellent": "#4caf50",
+    "Good": "#8bc34a",
+    "Fair": "#ff9800",
+    "Poor": "#f44336",
+    "Needs Repair": "#d32f2f"
+  }[asset.Condition] || "#999"
+
+  html += `
+  <tr class="assetRow" style="background:${rowColor}; border-bottom:1px solid #ddd;">
+    <td style="padding:12px; border:1px solid #ddd;"><b>${asset.AssetName}</b></td>
+    <td style="padding:12px; border:1px solid #ddd;"><span style="background:#e3f2fd; color:#1976d2; padding:4px 8px; border-radius:4px; font-size:12px;">${asset.Category || "N/A"}</span></td>
+    <td style="padding:12px; border:1px solid #ddd;">${asset.SerialNumber || "-"}</td>
+    <td style="padding:12px; border:1px solid #ddd;">${asset.Make || "-"} ${asset.Model ? "/ " + asset.Model : ""}</td>
+    <td style="padding:12px; border:1px solid #ddd; text-align:center;">${asset.YearBought || "-"}</td>
+    <td style="padding:12px; border:1px solid #ddd; text-align:center;">${asset.ReplaceYear || "-"}</td>
+    <td style="padding:12px; border:1px solid #ddd;">${asset.Location || "-"}</td>
+    <td style="padding:12px; border:1px solid #ddd;">${asset.Cost ? "$" + asset.Cost.toFixed(2) : "-"}</td>
+    <td style="padding:12px; border:1px solid #ddd;"><span style="background:${conditionColor}20; color:${conditionColor}; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${asset.Condition || "-"}</span></td>
+    <td style="padding:12px; border:1px solid #ddd; text-align:center; white-space:nowrap;">
+      <button onclick="editAsset('${doc.id}')" style="background:#2196f3; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">✏️</button>
+      <button onclick="deleteAsset('${doc.id}', '${asset.AssetName}')" style="background:#f44336; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">🗑️</button>
+    </td>
+  </tr>
   `
+})
 
-  html += assetCard
-}
-
-if(html === ""){
-  html = `<p style="color:#999; text-align:center; padding:40px;">No assets found. <a href="javascript:showAddAsset()" style="color:#2196f3;">Add one now</a></p>`
-}
+html += `
+  </tbody>
+</table>
+</div>
+`
 
 document.getElementById("assetList").innerHTML = html
 
@@ -90,7 +130,7 @@ const rows = document.getElementsByClassName("assetRow")
 
 for(let r of rows){
   if(r.innerText.toLowerCase().includes(text)){
-    r.style.display = "block"
+    r.style.display = "table-row"
   } else {
     r.style.display = "none"
   }
@@ -101,12 +141,24 @@ for(let r of rows){
 /* SHOW ADD ASSET FORM */
 function showAddAsset(){
 
+let categoryOptions = '<option value="">-- Select Category --</option>'
+ASSET_CATEGORIES.forEach(cat => {
+  categoryOptions += `<option value="${cat}">${cat}</option>`
+})
+
 show(`
 
 <h2>Add New Asset</h2>
 
 <label>Asset Name *</label>
 <input id="assetName" placeholder="e.g., Cordless Microphone"><br><br>
+
+<label>Category</label>
+<select id="category">
+${categoryOptions}
+</select>
+
+<br><br>
 
 <label>Serial Number</label>
 <input id="serialNumber" placeholder="Serial number or identifier"><br><br>
@@ -157,6 +209,7 @@ show(`
 async function saveAsset(){
 
 const assetName = document.getElementById("assetName").value.trim()
+const category = document.getElementById("category").value.trim()
 const serialNumber = document.getElementById("serialNumber").value.trim()
 const make = document.getElementById("make").value.trim()
 const model = document.getElementById("model").value.trim()
@@ -176,6 +229,7 @@ try{
 
 await db.collection("assets").add({
   AssetName: assetName,
+  Category: category,
   SerialNumber: serialNumber,
   Make: make,
   Model: model,
@@ -210,12 +264,25 @@ if(!doc.exists){
 
 const asset = doc.data()
 
+let categoryOptions = '<option value="">-- Select Category --</option>'
+ASSET_CATEGORIES.forEach(cat => {
+  const selected = cat === asset.Category ? "selected" : ""
+  categoryOptions += `<option value="${cat}" ${selected}>${cat}</option>`
+})
+
 show(`
 
 <h2>Edit Asset</h2>
 
 <label>Asset Name *</label>
 <input id="assetName" value="${asset.AssetName}"><br><br>
+
+<label>Category</label>
+<select id="category">
+${categoryOptions}
+</select>
+
+<br><br>
 
 <label>Serial Number</label>
 <input id="serialNumber" value="${asset.SerialNumber || ''}"><br><br>
@@ -266,6 +333,7 @@ show(`
 async function updateAsset(assetId){
 
 const assetName = document.getElementById("assetName").value.trim()
+const category = document.getElementById("category").value.trim()
 const serialNumber = document.getElementById("serialNumber").value.trim()
 const make = document.getElementById("make").value.trim()
 const model = document.getElementById("model").value.trim()
@@ -285,6 +353,7 @@ try{
 
 await db.collection("assets").doc(assetId).update({
   AssetName: assetName,
+  Category: category,
   SerialNumber: serialNumber,
   Make: make,
   Model: model,
