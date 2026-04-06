@@ -1020,38 +1020,56 @@ const pageWidth = pdf.internal.pageSize.getWidth()
 const pageHeight = pdf.internal.pageSize.getHeight()
 let yPosition = 10
 
-// Add logo image (from logo.png file)
+// Add header image (pasted_image_8.png) - full width professional header
 try {
-  const logoResponse = await fetch('logo.png')
-  const logoBlob = await logoResponse.blob()
-  const logoDataUrl = await new Promise((resolve) => {
+  const headerResponse = await fetch('pasted_image_8.png')
+  const headerBlob = await headerResponse.blob()
+  const headerDataUrl = await new Promise((resolve) => {
     const reader = new FileReader()
     reader.onloadend = () => resolve(reader.result)
-    reader.readAsDataURL(logoBlob)
+    reader.readAsDataURL(headerBlob)
   })
 
-  // Add logo to left side of header
-  pdf.addImage(logoDataUrl, 'PNG', 12, 10, 25, 25)
+  // Add header image across full width at top
+  // Image dimensions: proportional to page width
+  pdf.addImage(headerDataUrl, 'PNG', 10, 10, pageWidth - 20, 35)
+  yPosition = 50
 } catch(e) {
-  console.warn("Logo image not found, continuing without logo")
+  console.warn("Header image not found, using text header")
+
+  // Fallback to text header if image not found
+  try {
+    const logoResponse = await fetch('logo.png')
+    const logoBlob = await logoResponse.blob()
+    const logoDataUrl = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(logoBlob)
+    })
+
+    // Add logo to left side of header
+    pdf.addImage(logoDataUrl, 'PNG', 12, 10, 25, 25)
+  } catch(e2) {
+    console.warn("Logo image not found either")
+  }
+
+  // Header text - positioned to the right of logo
+  yPosition = 12
+
+  // Organization Name (bold, larger)
+  pdf.setFontSize(13)
+  pdf.setFont(undefined, "bold")
+  pdf.text("The Boston Christian Assembly", 42, yPosition)
+
+  yPosition += 6
+
+  // Contact information (smaller)
+  pdf.setFontSize(9)
+  pdf.setFont(undefined, "normal")
+  pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bostonchristian.net", 42, yPosition)
+
+  yPosition = 40
 }
-
-// Header text - positioned to the right of logo
-yPosition = 12
-
-// Organization Name (bold, larger)
-pdf.setFontSize(13)
-pdf.setFont(undefined, "bold")
-pdf.text("The Boston Christian Assembly", 42, yPosition)
-
-yPosition += 6
-
-// Contact information (smaller)
-pdf.setFontSize(9)
-pdf.setFont(undefined, "normal")
-pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bostonchristian.net", 42, yPosition)
-
-yPosition = 40
 
 // Salutation - Include spouse if joint account
 pdf.setFontSize(10)
@@ -1307,38 +1325,55 @@ for(const member of activeMembers){
   const pageHeight = pdf.internal.pageSize.getHeight()
   let yPosition = 10
 
-  // Add logo image (from logo.png file)
+  // Add header image (pasted_image_8.png) - full width professional header
   try {
-    const logoResponse = await fetch('logo.png')
-    const logoBlob = await logoResponse.blob()
-    const logoDataUrl = await new Promise((resolve) => {
+    const headerResponse = await fetch('pasted_image_8.png')
+    const headerBlob = await headerResponse.blob()
+    const headerDataUrl = await new Promise((resolve) => {
       const reader = new FileReader()
       reader.onloadend = () => resolve(reader.result)
-      reader.readAsDataURL(logoBlob)
+      reader.readAsDataURL(headerBlob)
     })
 
-    // Add logo to left side of header
-    pdf.addImage(logoDataUrl, 'PNG', 12, 10, 25, 25)
+    // Add header image across full width at top
+    pdf.addImage(headerDataUrl, 'PNG', 10, 10, pageWidth - 20, 35)
+    yPosition = 50
   } catch(e) {
-    console.warn("Logo image not found, continuing without logo")
+    console.warn("Header image not found, using text header")
+
+    // Fallback to text header if image not found
+    try {
+      const logoResponse = await fetch('logo.png')
+      const logoBlob = await logoResponse.blob()
+      const logoDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsDataURL(logoBlob)
+      })
+
+      // Add logo to left side of header
+      pdf.addImage(logoDataUrl, 'PNG', 12, 10, 25, 25)
+    } catch(e2) {
+      console.warn("Logo image not found either")
+    }
+
+    // Header text - positioned to the right of logo
+    yPosition = 12
+
+    // Organization Name (bold, larger)
+    pdf.setFontSize(13)
+    pdf.setFont(undefined, "bold")
+    pdf.text("The Boston Christian Assembly", 42, yPosition)
+
+    yPosition += 6
+
+    // Contact information (smaller)
+    pdf.setFontSize(9)
+    pdf.setFont(undefined, "normal")
+    pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bostonchristian.net", 42, yPosition)
+
+    yPosition = 40
   }
-
-  // Header text - positioned to the right of logo
-  yPosition = 12
-
-  // Organization Name (bold, larger)
-  pdf.setFontSize(13)
-  pdf.setFont(undefined, "bold")
-  pdf.text("The Boston Christian Assembly", 42, yPosition)
-
-  yPosition += 6
-
-  // Contact information (smaller)
-  pdf.setFontSize(9)
-  pdf.setFont(undefined, "normal")
-  pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bostonchristian.net", 42, yPosition)
-
-  yPosition = 40
 
   // Salutation - Include spouse if joint account
   pdf.setFontSize(10)
