@@ -1121,12 +1121,12 @@ const col2Divide = rightColStartX + (2 * rightColWidth / 3)
 pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 25)  // Divider between columns 1 and 2
 pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 25)  // Divider between columns 2 and 3
 
-// Horizontal dividers
+// Horizontal dividers - ONLY IN LEFT COLUMN (rows 2-6 in right column stay merged)
 pdf.line(tableStartX, tableStartY + 25, tableStartX + tableWidth, tableStartY + 25)  // Below header row
-pdf.line(tableStartX, tableStartY + 40, tableStartX + tableWidth, tableStartY + 40)  // After Fed ID
-pdf.line(tableStartX, tableStartY + 50, tableStartX + tableWidth, tableStartY + 50)  // After SSN
-pdf.line(tableStartX, tableStartY + 68, tableStartX + tableWidth, tableStartY + 68)  // After donor name
-pdf.line(tableStartX, tableStartY + 79, tableStartX + tableWidth, tableStartY + 79)  // After street address
+pdf.line(tableStartX, tableStartY + 40, tableStartX + leftColWidth, tableStartY + 40)  // After Fed ID - LEFT COLUMN ONLY
+pdf.line(tableStartX, tableStartY + 50, tableStartX + leftColWidth, tableStartY + 50)  // After SSN - LEFT COLUMN ONLY
+pdf.line(tableStartX, tableStartY + 68, tableStartX + leftColWidth, tableStartY + 68)  // After donor name - LEFT COLUMN ONLY
+pdf.line(tableStartX, tableStartY + 79, tableStartX + leftColWidth, tableStartY + 79)  // After street address - LEFT COLUMN ONLY
 
 // LEFT COLUMN - HEADER
 pdf.setFontSize(8)
@@ -1399,12 +1399,12 @@ for(const member of activeMembers){
   pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 25)  // Divider between columns 1 and 2
   pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 25)  // Divider between columns 2 and 3
 
-  // Horizontal dividers
+  // Horizontal dividers - ONLY IN LEFT COLUMN (rows 2-6 in right column stay merged)
   pdf.line(tableStartX, tableStartY + 25, tableStartX + tableWidth, tableStartY + 25)  // Below header row
-  pdf.line(tableStartX, tableStartY + 40, tableStartX + tableWidth, tableStartY + 40)  // After Fed ID
-  pdf.line(tableStartX, tableStartY + 50, tableStartX + tableWidth, tableStartY + 50)  // After SSN
-  pdf.line(tableStartX, tableStartY + 68, tableStartX + tableWidth, tableStartY + 68)  // After donor name
-  pdf.line(tableStartX, tableStartY + 79, tableStartX + tableWidth, tableStartY + 79)  // After street address
+  pdf.line(tableStartX, tableStartY + 40, tableStartX + leftColWidth, tableStartY + 40)  // After Fed ID - LEFT COLUMN ONLY
+  pdf.line(tableStartX, tableStartY + 50, tableStartX + leftColWidth, tableStartY + 50)  // After SSN - LEFT COLUMN ONLY
+  pdf.line(tableStartX, tableStartY + 68, tableStartX + leftColWidth, tableStartY + 68)  // After donor name - LEFT COLUMN ONLY
+  pdf.line(tableStartX, tableStartY + 79, tableStartX + leftColWidth, tableStartY + 79)  // After street address - LEFT COLUMN ONLY
 
   // LEFT COLUMN - HEADER
   pdf.setFontSize(8)
