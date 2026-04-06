@@ -1053,9 +1053,14 @@ pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bost
 
 yPosition = 40
 
-// Salutation
+// Salutation - Include spouse if joint account
 pdf.setFontSize(10)
-pdf.text("Dear " + member.Name.split(" ")[0] + ",", 20, yPosition)
+let salutation = "Dear " + member.Name.split(" ")[0]
+if(member.IsJointAccount && member.Spouse?.Name) {
+  const spouseFirstName = member.Spouse.Name.split(" ")[0]
+  salutation = `Dear ${member.Name.split(" ")[0]} and ${spouseFirstName}`
+}
+pdf.text(salutation + ",", 20, yPosition)
 
 yPosition += 8
 
@@ -1176,7 +1181,11 @@ pdf.text("Donor's Social Security or C.I.D. No.", tableStartX + 2, tableStartY +
 pdf.setFont(undefined, "bold")
 pdf.text("Donor's Name (First, Middle, Last):", tableStartX + 2, tableStartY + 58)
 pdf.setFont(undefined, "normal")
-pdf.text(member.Name, tableStartX + 2, tableStartY + 64)
+let donorName = member.Name
+if(member.IsJointAccount && member.Spouse?.Name) {
+  donorName = `${member.Name} & ${member.Spouse.Name}`
+}
+pdf.text(donorName, tableStartX + 2, tableStartY + 64)
 
 // Street Address section
 pdf.setFont(undefined, "bold")
@@ -1331,9 +1340,14 @@ for(const member of activeMembers){
 
   yPosition = 40
 
-  // Salutation
+  // Salutation - Include spouse if joint account
   pdf.setFontSize(10)
-  pdf.text("Dear " + memberData.Name.split(" ")[0] + ",", 20, yPosition)
+  let salutation = "Dear " + memberData.Name.split(" ")[0]
+  if(memberData.IsJointAccount && memberData.Spouse?.Name) {
+    const spouseFirstName = memberData.Spouse.Name.split(" ")[0]
+    salutation = `Dear ${memberData.Name.split(" ")[0]} and ${spouseFirstName}`
+  }
+  pdf.text(salutation + ",", 20, yPosition)
 
   yPosition += 8
 
@@ -1454,7 +1468,11 @@ for(const member of activeMembers){
   pdf.setFont(undefined, "bold")
   pdf.text("Donor's Name (First, Middle, Last):", tableStartX + 2, tableStartY + 58)
   pdf.setFont(undefined, "normal")
-  pdf.text(memberData.Name, tableStartX + 2, tableStartY + 64)
+  let donorName = memberData.Name
+  if(memberData.IsJointAccount && memberData.Spouse?.Name) {
+    donorName = `${memberData.Name} & ${memberData.Spouse.Name}`
+  }
+  pdf.text(donorName, tableStartX + 2, tableStartY + 64)
 
   // Street Address section
   pdf.setFont(undefined, "bold")

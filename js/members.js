@@ -130,6 +130,20 @@ Address2<br>
 Address3<br>
 <input id="addr3"><br><br>
 
+Spouse Name (if applicable)<br>
+<input id="spouseName" placeholder="Spouse's full name"><br><br>
+
+Spouse Email<br>
+<input id="spouseEmail" placeholder="Spouse's email"><br><br>
+
+Joint Account (Couple offering together)<br>
+<select id="isJoint">
+<option value="false">No</option>
+<option value="true">Yes</option>
+</select>
+
+<br><br>
+
 Active
 <select id="active">
 <option value="true">Active</option>
@@ -152,8 +166,18 @@ Active
 
 async function addMember(){
 
-await db.collection("members").add({
+const spouseName = document.getElementById("spouseName").value.trim()
+const spouseEmail = document.getElementById("spouseEmail").value.trim()
+const isJoint = document.getElementById("isJoint").value === "true"
 
+// Build spouse object if spouse name is provided
+const spouse = spouseName ? {
+  Name: spouseName,
+  Email: spouseEmail || null,
+  Active: true
+} : null
+
+await db.collection("members").add({
 
 Name:
 document.getElementById("name").value,
@@ -172,6 +196,10 @@ document.getElementById("addr2").value,
 
 Address3:
 document.getElementById("addr3").value,
+
+Spouse: spouse,
+
+IsJointAccount: isJoint && !!spouseName,
 
 Active:
 document.getElementById("active").value === "true",
@@ -220,6 +248,20 @@ Address2<br>
 Address3<br>
 <input id="addr3" value="${m.Address3 || ""}"><br><br>
 
+Spouse Name (if applicable)<br>
+<input id="spouseName" placeholder="Spouse's full name" value="${m.Spouse?.Name || ""}"><br><br>
+
+Spouse Email<br>
+<input id="spouseEmail" placeholder="Spouse's email" value="${m.Spouse?.Email || ""}"><br><br>
+
+Joint Account (Couple offering together)<br>
+<select id="isJoint">
+<option value="false" ${!m.IsJointAccount ? "selected":""}>No</option>
+<option value="true" ${m.IsJointAccount ? "selected":""}>Yes</option>
+</select>
+
+<br><br>
+
 Active
 <select id="active">
 <option value="true" ${m.Active ? "selected":""}>Active</option>
@@ -242,6 +284,17 @@ Active
 
 async function updateMember(id){
 
+const spouseName = document.getElementById("spouseName").value.trim()
+const spouseEmail = document.getElementById("spouseEmail").value.trim()
+const isJoint = document.getElementById("isJoint").value === "true"
+
+// Build spouse object if spouse name is provided
+const spouse = spouseName ? {
+  Name: spouseName,
+  Email: spouseEmail || null,
+  Active: true
+} : null
+
 await db.collection("members").doc(id).update({
 
 Name:
@@ -261,6 +314,10 @@ document.getElementById("addr2").value,
 
 Address3:
 document.getElementById("addr3").value,
+
+Spouse: spouse,
+
+IsJointAccount: isJoint && !!spouseName,
 
 Active:
 document.getElementById("active").value === "true"
