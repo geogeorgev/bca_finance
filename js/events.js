@@ -258,7 +258,6 @@ ${participantsList.length > 0 ? participantsList : '<tr><td colspan="9" style="t
 
 <button onclick="loadEvents()" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Back to Events</button>
 
-<button onclick="showSyncContributionsToIncome('${eventId}')" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">💾 Sync Contributions to Income</button>
 
 `)
 
@@ -972,99 +971,5 @@ try {
 
 }
 
-
-/* SYNC CONTRIBUTIONS TO INCOME - BATCH RECORD */
-
-async function showSyncContributionsToIncome(eventId){
-
-const eventDoc = await db.collection("events").doc(eventId).get()
-const event = eventDoc.data()
-
-const regSnap = await db.collection("eventRegistrations")
-  .where("eventId", "==", eventId)
-  .get()
-
-let unrecordedContributions = 0
-
-regSnap.forEach(doc => {
-  const p = doc.data()
-  if(p.contribution > 0){
-    unrecordedContributions++
-  }
-})
-
-show(`
-
-<h2>Sync Contributions to Income - ${event.name}</h2>
-
-<p>This will record all participant contributions as income entries in the Collection (Income) records.</p>
-
-<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107;">
-  <strong>⚠️ Note:</strong> This will create income entries for participants with contributions > $0.
-  <br>
-  <strong>Count:</strong> ${unrecordedContributions} unrecorded contributions will be synced.
-</div>
-
-<button onclick="syncAllContributionsToIncome('${eventId}')" style="padding: 8px 16px; background: #38ef7d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Sync All Contributions</button>
-
-<button onclick="viewEventDetails('${eventId}')" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
-
-`)
-
-}
-
-
-/* BATCH SYNC ALL CONTRIBUTIONS */
-
-async function syncAllContributionsToIncome(eventId){
-
-if(!confirm("Are you sure you want to sync all contributions to income collection? This cannot be undone.")){
-  return
-}
-
-const eventDoc = await db.collection("events").doc(eventId).get()
-const event = eventDoc.data()
-
-const regSnap = await db.collection("eventRegistrations")
-  .where("eventId", "==", eventId)
-  .get()
-
-let syncedCount = 0
-let skippedCount = 0
-
-for(const doc of regSnap.docs){
-  const p = doc.data()
-
-  if(p.contribution > 0){
-    try {
-      // Check if already recorded
-      const incomeSnap = await db.collection("income")
-        .where("MemberName", "==", p.guardian)
-        .where("Purpose", "==", event.name)
-        .where("Amount", "==", p.contribution)
-        .get()
-
-      // Only sync if not already recorded
-      if(incomeSnap.empty){
-        await recordParticipantContributionAsIncome(
-          eventId,
-          p.guardian,
-          p.contribution,
-          p.paymentMethod || "cash",
-          p.checkNumber || "",
-          p.guardianMemberId || null
-        )
-        syncedCount++
-      } else {
-        skippedCount++
-      }
-    } catch(error){
-      console.error("Error syncing:", error)
-    }
-  }
-}
-
-alert(`Sync Complete!\n\nRecorded: ${syncedCount} contributions\nSkipped (already recorded): ${skippedCount}`)
-viewEventDetails(eventId)
 
 }

@@ -143,6 +143,8 @@ try {
   document.getElementById("assetList").innerHTML = `<p style="color:#d32f2f; text-align:center; padding:40px;">Error loading assets: ${error.message}</p>`
 }
 
+}
+
 /* FILTER ASSETS */
 function filterAssets(){
 
