@@ -491,7 +491,8 @@ loadAssets()
 async function generateAssetReport(){
 
 try {
-  const snap = await db.collection("assets").orderBy("Category").orderBy("AssetName").get()
+  // Use simple query without composite index
+  const snap = await db.collection("assets").get()
 
   if(snap.empty){
     alert("No assets to report")
@@ -505,6 +506,14 @@ try {
       id: doc.id,
       data: doc.data()
     })
+  })
+
+  // Sort by category and asset name on client side
+  assets.sort((a, b) => {
+    const catA = (a.data.Category || "").toLowerCase()
+    const catB = (b.data.Category || "").toLowerCase()
+    if(catA !== catB) return catA.localeCompare(catB)
+    return (a.data.AssetName || "").localeCompare(b.data.AssetName)
   })
 
   // Group by category

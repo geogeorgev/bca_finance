@@ -969,3 +969,4 @@ try {
   console.error("Error recording income: ", error)
 }
 
+}
