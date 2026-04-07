@@ -114,7 +114,7 @@ try {
 
     html += `
   <tr class="assetRow" style="background:${rowColor}; border-bottom:1px solid #ddd;">
-    <td style="padding:12px; border:1px solid #ddd;"><b>${asset.AssetName}</b></td>
+    <td style="padding:12px; border:1px solid #ddd;"><b>${asset.AssetName}</b> ${asset.AssetImage ? '<span style="color:#4caf50; font-size:14px;">📸</span>' : ''}</td>
     <td style="padding:12px; border:1px solid #ddd;"><span style="background:#e3f2fd; color:#1976d2; padding:4px 8px; border-radius:4px; font-size:12px;">${asset.Category || "N/A"}</span></td>
     <td style="padding:12px; border:1px solid #ddd;">${asset.SerialNumber || "-"}</td>
     <td style="padding:12px; border:1px solid #ddd;">${asset.Make || "-"} ${asset.Model ? "/ " + asset.Model : ""}</td>
@@ -223,14 +223,17 @@ ${categoryOptions}
 
 <br><br>
 
-<label>Asset Image (Optional)</label>
-<input type="file" id="assetImage" accept="image/*" style="margin: 6px 0;">
-<small style="color: #666;">Accepted: JPG, PNG, and other image formats. Max 700KB</small>
+<div style="background:#f0f7ff; border:2px solid #2196f3; border-radius:6px; padding:15px; margin:15px 0;">
+  <h3 style="margin-top:0; color:#1976d2;">📸 Asset Image (Optional)</h3>
+  <p style="margin:5px 0; color:#666; font-size:13px;">Upload a photo of this asset for visual identification</p>
+  <input type="file" id="assetImage" accept="image/*" style="margin: 10px 0; padding:8px; border:1px solid #2196f3; border-radius:4px; width:100%; box-sizing:border-box;">
+  <small style="color: #666; display:block; margin-top:5px;">✓ Formats: JPG, PNG | ✓ Max size: 700KB</small>
+</div>
 
-<br><br>
+<br>
 
-<button onclick="saveAsset()">Save Asset</button>
-<button onclick="loadAssets()">Cancel</button>
+<button onclick="saveAsset()" style="background:#4caf50; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">💾 Save Asset</button>
+<button onclick="loadAssets()" style="background:#999; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; margin-left:5px; font-size:14px;">Cancel</button>
 
 `)
 
@@ -374,16 +377,23 @@ ${categoryOptions}
 
 <br><br>
 
-${asset.AssetImage ? `<div style="margin-bottom:15px;"><img src="${asset.AssetImage}" style="max-width:200px; max-height:200px; border:1px solid #ddd; border-radius:4px;"><br><small style="color:#666;">Current image</small></div>` : ''}
+<div style="background:#f0f7ff; border:2px solid #2196f3; border-radius:6px; padding:15px; margin:15px 0;">
+  <h3 style="margin-top:0; color:#1976d2;">📸 Asset Image</h3>
 
-<label>Asset Image (Optional)</label>
-<input type="file" id="assetImage" accept="image/*" style="margin: 6px 0;">
-<small style="color: #666;">Upload a new image to replace. Max 700KB</small>
+  ${asset.AssetImage ? `<div style="margin-bottom:15px; text-align:center;">
+    <img src="${asset.AssetImage}" style="max-width:250px; max-height:250px; border:2px solid #ddd; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <p style="margin:10px 0 0 0; color:#666; font-size:12px;">Current image</p>
+  </div>` : '<p style="color:#999; font-style:italic;">No image uploaded yet</p>'}
 
-<br><br>
+  <p style="margin:5px 0; color:#666; font-size:13px;">Upload a new photo to replace the current image (or upload the first one)</p>
+  <input type="file" id="assetImage" accept="image/*" style="margin: 10px 0; padding:8px; border:1px solid #2196f3; border-radius:4px; width:100%; box-sizing:border-box;">
+  <small style="color: #666; display:block; margin-top:5px;">✓ Formats: JPG, PNG | ✓ Max size: 700KB</small>
+</div>
 
-<button onclick="updateAsset('${assetId}')">Update Asset</button>
-<button onclick="loadAssets()">Cancel</button>
+<br>
+
+<button onclick="updateAsset('${assetId}')" style="background:#2196f3; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">✏️ Update Asset</button>
+<button onclick="loadAssets()" style="background:#999; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; margin-left:5px; font-size:14px;">Cancel</button>
 
 `)
 
