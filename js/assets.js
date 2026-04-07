@@ -124,6 +124,7 @@ try {
     <td style="padding:12px; border:1px solid #ddd;">${asset.Cost ? "$" + asset.Cost.toFixed(2) : "-"}</td>
     <td style="padding:12px; border:1px solid #ddd;"><span style="background:${conditionColor}20; color:${conditionColor}; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${asset.Condition || "-"}</span></td>
     <td style="padding:12px; border:1px solid #ddd; text-align:center; white-space:nowrap;">
+      ${asset.AssetImage ? `<button onclick="viewAssetImage('${item.id}', '${asset.AssetName}')" style="background:#4caf50; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;" title="View image">👁️</button>` : ''}
       <button onclick="editAsset('${item.id}')" style="background:#2196f3; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">✏️</button>
       <button onclick="deleteAsset('${item.id}', '${asset.AssetName}')" style="background:#f44336; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">🗑️</button>
     </td>
@@ -673,6 +674,88 @@ try {
 } catch(error) {
   console.error("Error generating report:", error)
   alert("Error generating report: " + error.message)
+}
+
+}
+
+/* VIEW ASSET IMAGE IN MODAL */
+async function viewAssetImage(assetId, assetName){
+
+try {
+  const doc = await db.collection("assets").doc(assetId).get()
+
+  if(!doc.exists){
+    alert("Asset not found")
+    return
+  }
+
+  const asset = doc.data()
+
+  if(!asset.AssetImage){
+    alert("No image attached to this asset")
+    return
+  }
+
+  show(`
+<div style="background:white; padding:20px; border-radius:8px;">
+  <h2 style="margin-top:0; color:#333;">${assetName}</h2>
+
+  <div style="margin-bottom:20px; text-align:center;">
+    <img src="${asset.AssetImage}" style="max-width:90%; max-height:600px; border:2px solid #ddd; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+  </div>
+
+  <div style="background:#f5f5f5; padding:15px; border-radius:4px; margin-bottom:20px;">
+    <h3 style="margin-top:0; color:#667eea;">Asset Details</h3>
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td style="padding:8px; font-weight:bold; width:150px;">Asset Name:</td>
+        <td style="padding:8px;">${asset.AssetName}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Category:</td>
+        <td style="padding:8px;">${asset.Category || "N/A"}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px; font-weight:bold;">Serial Number:</td>
+        <td style="padding:8px;">${asset.SerialNumber || "-"}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Make / Model:</td>
+        <td style="padding:8px;">${asset.Make || "-"} ${asset.Model ? "/ " + asset.Model : ""}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px; font-weight:bold;">Year Bought:</td>
+        <td style="padding:8px;">${asset.YearBought || "-"}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Location:</td>
+        <td style="padding:8px;">${asset.Location || "-"}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px; font-weight:bold;">Cost:</td>
+        <td style="padding:8px;">${asset.Cost ? "$" + asset.Cost.toFixed(2) : "-"}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Condition:</td>
+        <td style="padding:8px;">${asset.Condition || "-"}</td>
+      </tr>
+      ${asset.Notes ? `<tr>
+        <td style="padding:8px; font-weight:bold;">Notes:</td>
+        <td style="padding:8px;">${asset.Notes}</td>
+      </tr>` : ''}
+    </table>
+  </div>
+
+  <div style="display:flex; gap:10px; justify-content:center;">
+    <button onclick="editAsset('${assetId}')" style="background:#2196f3; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">✏️ Edit Asset</button>
+    <button onclick="loadAssets()" style="background:#999; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">Back to List</button>
+  </div>
+</div>
+  `)
+
+} catch(error) {
+  console.error("Error viewing image:", error)
+  alert("Error loading image: " + error.message)
 }
 
 }
