@@ -37,6 +37,7 @@ show(`
 
 <button onclick="showAddAsset()" style="background:#4caf50;">➕ Add New Asset</button>
 <button onclick="loadAssets()" style="background:#2196f3;">🔄 Refresh</button>
+<button onclick="generateAssetReport()" style="background:#667eea;">🖨️ Print Report</button>
 
 <br><br>
 
@@ -222,6 +223,12 @@ ${categoryOptions}
 
 <br><br>
 
+<label>Asset Image (Optional)</label>
+<input type="file" id="assetImage" accept="image/*" style="margin: 6px 0;">
+<small style="color: #666;">Accepted: JPG, PNG, and other image formats. Max 700KB</small>
+
+<br><br>
+
 <button onclick="saveAsset()">Save Asset</button>
 <button onclick="loadAssets()">Cancel</button>
 
@@ -243,32 +250,53 @@ const location = document.getElementById("location").value.trim()
 const cost = document.getElementById("cost").value
 const condition = document.getElementById("condition").value
 const notes = document.getElementById("notes").value.trim()
+const assetImageFile = document.getElementById("assetImage").files[0]
 
 if(!assetName){
   alert("Asset Name is required")
   return
 }
 
-try{
+try {
+  // Upload image if file selected
+  let assetImageUrl = null
+  let assetImageFileName = null
 
-await db.collection("assets").add({
-  AssetName: assetName,
-  Category: category,
-  SerialNumber: serialNumber,
-  Make: make,
-  Model: model,
-  YearBought: yearBought ? parseInt(yearBought) : null,
-  ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
-  Location: location,
-  Cost: cost ? parseFloat(cost) : null,
-  Condition: condition,
-  Notes: notes,
-  CreateDate: firebase.firestore.FieldValue.serverTimestamp(),
-  UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
-})
+  if(assetImageFile){
+    const maxSize = 700 * 1024
+    if(assetImageFile.size > maxSize){
+      alert(`Image file is too large (${(assetImageFile.size/1024).toFixed(0)}KB).\nPlease use a file under 700KB.\nTip: Compress the image before uploading.`)
+      return
+    }
 
-alert("Asset added successfully! 🎉")
-loadAssets()
+    const reader = new FileReader()
+    assetImageUrl = await new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(assetImageFile)
+    })
+    assetImageFileName = assetImageFile.name
+  }
+
+  await db.collection("assets").add({
+    AssetName: assetName,
+    Category: category,
+    SerialNumber: serialNumber,
+    Make: make,
+    Model: model,
+    YearBought: yearBought ? parseInt(yearBought) : null,
+    ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
+    Location: location,
+    Cost: cost ? parseFloat(cost) : null,
+    Condition: condition,
+    Notes: notes,
+    AssetImage: assetImageUrl,
+    AssetImageFileName: assetImageFileName,
+    CreateDate: firebase.firestore.FieldValue.serverTimestamp(),
+    UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
+  })
+
+  alert("Asset added successfully! 🎉")
+  loadAssets()
 
 } catch(error){
   alert("Error saving asset: " + error.message)
@@ -346,6 +374,14 @@ ${categoryOptions}
 
 <br><br>
 
+${asset.AssetImage ? `<div style="margin-bottom:15px;"><img src="${asset.AssetImage}" style="max-width:200px; max-height:200px; border:1px solid #ddd; border-radius:4px;"><br><small style="color:#666;">Current image</small></div>` : ''}
+
+<label>Asset Image (Optional)</label>
+<input type="file" id="assetImage" accept="image/*" style="margin: 6px 0;">
+<small style="color: #666;">Upload a new image to replace. Max 700KB</small>
+
+<br><br>
+
 <button onclick="updateAsset('${assetId}')">Update Asset</button>
 <button onclick="loadAssets()">Cancel</button>
 
@@ -367,6 +403,7 @@ const location = document.getElementById("location").value.trim()
 const cost = document.getElementById("cost").value
 const condition = document.getElementById("condition").value
 const notes = document.getElementById("notes").value.trim()
+const assetImageFile = document.getElementById("assetImage").files[0]
 
 if(!assetName){
   alert("Asset Name is required")
@@ -375,23 +412,54 @@ if(!assetName){
 
 try{
 
-await db.collection("assets").doc(assetId).update({
-  AssetName: assetName,
-  Category: category,
-  SerialNumber: serialNumber,
-  Make: make,
-  Model: model,
-  YearBought: yearBought ? parseInt(yearBought) : null,
-  ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
-  Location: location,
-  Cost: cost ? parseFloat(cost) : null,
-  Condition: condition,
-  Notes: notes,
-  UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
-})
+  // Upload image if file selected
+  let assetImageUrl = null
+  let assetImageFileName = null
 
-alert("Asset updated successfully! ✅")
-loadAssets()
+  if(assetImageFile){
+    const maxSize = 700 * 1024
+    if(assetImageFile.size > maxSize){
+      alert(`Image file is too large (${(assetImageFile.size/1024).toFixed(0)}KB).\nPlease use a file under 700KB.\nTip: Compress the image before uploading.`)
+      return
+    }
+
+    const reader = new FileReader()
+    assetImageUrl = await new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(assetImageFile)
+    })
+    assetImageFileName = assetImageFile.name
+  }
+
+  // Get current asset data
+  const currentAssetDoc = await db.collection("assets").doc(assetId).get()
+  const currentAsset = currentAssetDoc.data()
+
+  const updateData = {
+    AssetName: assetName,
+    Category: category,
+    SerialNumber: serialNumber,
+    Make: make,
+    Model: model,
+    YearBought: yearBought ? parseInt(yearBought) : null,
+    ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
+    Location: location,
+    Cost: cost ? parseFloat(cost) : null,
+    Condition: condition,
+    Notes: notes,
+    UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
+  }
+
+  // Only update image if new one provided
+  if(assetImageFile){
+    updateData.AssetImage = assetImageUrl
+    updateData.AssetImageFileName = assetImageFileName
+  }
+
+  await db.collection("assets").doc(assetId).update(updateData)
+
+  alert("Asset updated successfully! ✅")
+  loadAssets()
 
 } catch(error){
   alert("Error updating asset: " + error.message)
@@ -419,3 +487,173 @@ loadAssets()
 
 }
 
+/* GENERATE ASSET REPORT */
+async function generateAssetReport(){
+
+try {
+  const snap = await db.collection("assets").orderBy("Category").orderBy("AssetName").get()
+
+  if(snap.empty){
+    alert("No assets to report")
+    return
+  }
+
+  // Convert to array
+  let assets = []
+  snap.forEach((doc) => {
+    assets.push({
+      id: doc.id,
+      data: doc.data()
+    })
+  })
+
+  // Group by category
+  let assetsByCategory = {}
+  let totalAssets = 0
+
+  assets.forEach(item => {
+    const asset = item.data
+    const category = asset.Category || "Uncategorized"
+
+    if(!assetsByCategory[category]){
+      assetsByCategory[category] = []
+    }
+    assetsByCategory[category].push(asset)
+    totalAssets++
+  })
+
+  // Sort categories alphabetically
+  const sortedCategories = Object.keys(assetsByCategory).sort()
+
+  // Create HTML report
+  let reportHtml = `
+  <html>
+  <head>
+    <title>Asset Report</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+      .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #667eea; padding-bottom: 20px; }
+      .header h1 { margin: 0; color: #667eea; }
+      .header p { margin: 5px 0; color: #666; }
+      .category-section { margin-bottom: 30px; page-break-inside: avoid; }
+      .category-title { background: #667eea; color: white; padding: 12px; margin: 0 0 10px 0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+      .category-count { background: white; color: #667eea; padding: 4px 12px; border-radius: 3px; font-weight: bold; font-size: 18px; }
+      .asset-list { padding-left: 20px; }
+      .asset-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+      .asset-name { font-weight: bold; color: #333; font-size: 14px; }
+      .asset-details { font-size: 12px; color: #666; margin-top: 3px; }
+      .summary { background: #f5f5f5; padding: 20px; border-radius: 4px; margin-top: 30px; }
+      .summary h3 { margin-top: 0; color: #667eea; }
+      .summary-table { width: 100%; border-collapse: collapse; }
+      .summary-table th, .summary-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+      .summary-table th { background: #667eea; color: white; }
+      .summary-table tr:hover { background: #f9f9f9; }
+      .total-row { font-weight: bold; background: #f0f0f0; }
+      @media print {
+        body { margin: 0; }
+        .no-print { display: none; }
+        .category-section { page-break-inside: avoid; }
+      }
+      .print-buttons { text-align: center; margin-bottom: 20px; }
+      .print-buttons button { padding: 10px 20px; margin: 0 5px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+      .print-buttons button:hover { background: #5568d3; }
+    </style>
+  </head>
+  <body>
+    <div class="print-buttons no-print">
+      <button onclick="window.print()">🖨️ Print Report</button>
+      <button onclick="loadAssets()">Back to Assets</button>
+    </div>
+
+    <div class="header">
+      <h1>Church Asset Report</h1>
+      <p>Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+    </div>
+  `
+
+  // Add each category section
+  sortedCategories.forEach(category => {
+    const categoryAssets = assetsByCategory[category]
+    const count = categoryAssets.length
+
+    reportHtml += `
+    <div class="category-section">
+      <div class="category-title">
+        <span>${category}</span>
+        <span class="category-count">${count}</span>
+      </div>
+      <div class="asset-list">
+    `
+
+    categoryAssets.forEach(asset => {
+      reportHtml += `
+      <div class="asset-item">
+        <div class="asset-name">${asset.AssetName}</div>
+        <div class="asset-details">
+          ${asset.SerialNumber ? `Serial: ${asset.SerialNumber} | ` : ''}
+          ${asset.Make ? `Make: ${asset.Make}` : ''}
+          ${asset.Model ? ` / Model: ${asset.Model}` : ''}
+          ${asset.YearBought ? ` | Year: ${asset.YearBought}` : ''}
+          ${asset.Location ? ` | Location: ${asset.Location}` : ''}
+          ${asset.Condition ? ` | Condition: ${asset.Condition}` : ''}
+        </div>
+      </div>
+      `
+    })
+
+    reportHtml += `
+      </div>
+    </div>
+    `
+  })
+
+  // Add summary section
+  reportHtml += `
+  <div class="summary">
+    <h3>Summary by Category</h3>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th style="text-align: center;">Total Assets</th>
+        </tr>
+      </thead>
+      <tbody>
+  `
+
+  let summaryTotal = 0
+  sortedCategories.forEach(category => {
+    const count = assetsByCategory[category].length
+    summaryTotal += count
+    reportHtml += `
+      <tr>
+        <td>${category}</td>
+        <td style="text-align: center; font-weight: bold;">${count}</td>
+      </tr>
+    `
+  })
+
+  reportHtml += `
+      <tr class="total-row">
+        <td>TOTAL ASSETS</td>
+        <td style="text-align: center;">${summaryTotal}</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  </body>
+  </html>
+  `
+
+  // Open report in new window
+  const reportWindow = window.open('', 'assetReport')
+  reportWindow.document.write(reportHtml)
+  reportWindow.document.close()
+
+} catch(error) {
+  console.error("Error generating report:", error)
+  alert("Error generating report: " + error.message)
+}
+
+}
