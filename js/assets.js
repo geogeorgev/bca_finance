@@ -53,14 +53,33 @@ displayAssets()
 /* DISPLAY ALL ASSETS - HORIZONTAL TABLE */
 async function displayAssets(){
 
-const snap = await db.collection("assets").orderBy("Category").orderBy("AssetName").get()
+try {
+  const snap = await db.collection("assets").orderBy("AssetName").get()
 
-if(snap.empty){
-  document.getElementById("assetList").innerHTML = `<p style="color:#999; text-align:center; padding:40px;">No assets found. <a href="javascript:showAddAsset()" style="color:#2196f3;">Add one now</a></p>`
-  return
-}
+  if(snap.empty){
+    document.getElementById("assetList").innerHTML = `<p style="color:#999; text-align:center; padding:40px;">No assets found. <a href="javascript:showAddAsset()" style="color:#2196f3;">Add one now</a></p>`
+    return
+  }
 
-let html = `
+  // Convert to array and sort by Category, then by AssetName
+  let assets = []
+  snap.forEach((doc, index) => {
+    assets.push({
+      id: doc.id,
+      data: doc.data(),
+      index: index
+    })
+  })
+
+  // Sort by Category first, then by AssetName
+  assets.sort((a, b) => {
+    const catA = (a.data.Category || "").toLowerCase()
+    const catB = (b.data.Category || "").toLowerCase()
+    if(catA !== catB) return catA.localeCompare(catB)
+    return a.data.AssetName.localeCompare(b.data.AssetName)
+  })
+
+  let html = `
 <div style="overflow-x:auto; margin-top:20px;">
 <table style="width:100%; border-collapse:collapse; background:white; box-shadow:0 2px 8px rgba(0,0,0,0.1); border-radius:8px;">
   <thead>
@@ -80,19 +99,19 @@ let html = `
   <tbody>
 `
 
-snap.forEach((doc, index) => {
-  const asset = doc.data()
-  const rowColor = index % 2 === 0 ? "#f9f9f9" : "white"
+  assets.forEach((item, displayIndex) => {
+    const asset = item.data
+    const rowColor = displayIndex % 2 === 0 ? "#f9f9f9" : "white"
 
-  const conditionColor = {
-    "Excellent": "#4caf50",
-    "Good": "#8bc34a",
-    "Fair": "#ff9800",
-    "Poor": "#f44336",
-    "Needs Repair": "#d32f2f"
-  }[asset.Condition] || "#999"
+    const conditionColor = {
+      "Excellent": "#4caf50",
+      "Good": "#8bc34a",
+      "Fair": "#ff9800",
+      "Poor": "#f44336",
+      "Needs Repair": "#d32f2f"
+    }[asset.Condition] || "#999"
 
-  html += `
+    html += `
   <tr class="assetRow" style="background:${rowColor}; border-bottom:1px solid #ddd;">
     <td style="padding:12px; border:1px solid #ddd;"><b>${asset.AssetName}</b></td>
     <td style="padding:12px; border:1px solid #ddd;"><span style="background:#e3f2fd; color:#1976d2; padding:4px 8px; border-radius:4px; font-size:12px;">${asset.Category || "N/A"}</span></td>
@@ -104,21 +123,24 @@ snap.forEach((doc, index) => {
     <td style="padding:12px; border:1px solid #ddd;">${asset.Cost ? "$" + asset.Cost.toFixed(2) : "-"}</td>
     <td style="padding:12px; border:1px solid #ddd;"><span style="background:${conditionColor}20; color:${conditionColor}; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${asset.Condition || "-"}</span></td>
     <td style="padding:12px; border:1px solid #ddd; text-align:center; white-space:nowrap;">
-      <button onclick="editAsset('${doc.id}')" style="background:#2196f3; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">✏️</button>
-      <button onclick="deleteAsset('${doc.id}', '${asset.AssetName}')" style="background:#f44336; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">🗑️</button>
+      <button onclick="editAsset('${item.id}')" style="background:#2196f3; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">✏️</button>
+      <button onclick="deleteAsset('${item.id}', '${asset.AssetName}')" style="background:#f44336; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">🗑️</button>
     </td>
   </tr>
   `
-})
+  })
 
-html += `
+  html += `
   </tbody>
 </table>
 </div>
 `
 
-document.getElementById("assetList").innerHTML = html
+  document.getElementById("assetList").innerHTML = html
 
+} catch(error) {
+  console.error("Error loading assets:", error)
+  document.getElementById("assetList").innerHTML = `<p style="color:#d32f2f; text-align:center; padding:40px;">Error loading assets: ${error.message}</p>`
 }
 
 /* FILTER ASSETS */
