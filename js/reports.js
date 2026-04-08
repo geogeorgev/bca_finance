@@ -1109,11 +1109,15 @@ pdf.setFont(undefined, "normal")
 
 pdf.text("____________________", 20, yPosition)
 yPosition += 5
+pdf.text("Pastor and President", 20, yPosition)
+yPosition += 3
 pdf.text(pastorAndPresident, 20, yPosition)
 
-yPosition -= 5
+yPosition -= 8
 pdf.text("____________________", pageWidth - 50, yPosition)
 yPosition += 5
+pdf.text("Treasurer", pageWidth - 50, yPosition)
+yPosition += 3
 pdf.text(treasurer, pageWidth - 50, yPosition)
 
 yPosition += 15
@@ -1231,12 +1235,17 @@ const mergedColCenterX = tableStartX + leftColWidth + (rightColWidth / 2)
 // "Prepared by" text
 pdf.text("Prepared by", mergedColCenterX, tableStartY + 32, { align: "center" })
 
-// Treasurer's full name
+// Treasurer label
 pdf.setFont(undefined, "normal")
-pdf.text(treasurer, mergedColCenterX, tableStartY + 38, { align: "center" })
+pdf.setFontSize(7)
+pdf.text("Treasurer", mergedColCenterX, tableStartY + 37, { align: "center" })
+
+// Treasurer's full name
+pdf.setFontSize(8)
+pdf.text(treasurer, mergedColCenterX, tableStartY + 42, { align: "center" })
 
 // Organization name
-pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 44, { align: "center" })
+pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 48, { align: "center" })
 
 yPosition = tableStartY + 100
 
@@ -1413,11 +1422,15 @@ for(const member of activeMembers){
 
   pdf.text("____________________", 20, yPosition)
   yPosition += 5
+  pdf.text("Pastor and President", 20, yPosition)
+  yPosition += 3
   pdf.text(pastorAndPresident, 20, yPosition)
 
-  yPosition -= 5
+  yPosition -= 8
   pdf.text("____________________", pageWidth - 50, yPosition)
   yPosition += 5
+  pdf.text("Treasurer", pageWidth - 50, yPosition)
+  yPosition += 3
   pdf.text(treasurer, pageWidth - 50, yPosition)
 
   yPosition += 15
@@ -1535,12 +1548,17 @@ for(const member of activeMembers){
   // "Prepared by" text
   pdf.text("Prepared by", mergedColCenterX, tableStartY + 32, { align: "center" })
 
-  // Treasurer's full name
+  // Treasurer label
   pdf.setFont(undefined, "normal")
-  pdf.text(treasurer, mergedColCenterX, tableStartY + 38, { align: "center" })
+  pdf.setFontSize(7)
+  pdf.text("Treasurer", mergedColCenterX, tableStartY + 37, { align: "center" })
+
+  // Treasurer's full name
+  pdf.setFontSize(8)
+  pdf.text(treasurer, mergedColCenterX, tableStartY + 42, { align: "center" })
 
   // Organization name
-  pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 44, { align: "center" })
+  pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 48, { align: "center" })
 
   yPosition = tableStartY + 100
 
