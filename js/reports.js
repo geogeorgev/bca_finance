@@ -87,22 +87,25 @@ let reportTitle = `Collection Report - Year ${currentYear}`
 
 if(reportType === "ytd"){
   startDate = new Date(currentYear, 0, 1)
+  startDate.setHours(0, 0, 0, 0)  // Ensure start is at beginning of day
   endDate = new Date()
   reportTitle = `Collection Report - Year to Date (${currentYear})`
 } else if(reportType === "month"){
   const monthValue = document.getElementById("monthInput").value
   const [year, month] = monthValue.split('-')
   startDate = new Date(year, month - 1, 1)
+  startDate.setHours(0, 0, 0, 0)  // Ensure start is at beginning of day
   endDate = new Date(year, month, 0)
   reportTitle = `Collection Report - ${monthValue}`
 } else if(reportType === "custom"){
   startDate = new Date(document.getElementById("startDate").value)
+  startDate.setHours(0, 0, 0, 0)  // Ensure start is at beginning of day
   endDate = new Date(document.getElementById("endDate").value)
   reportTitle = `Collection Report - ${document.getElementById("startDate").value} to ${document.getElementById("endDate").value}`
 }
 
 // Ensure endDate comparison includes entire day for all report types
-const dateComparisonEnd = new Date(endDate)
+const dateComparisonEnd = new Date(endDate.getTime())
 dateComparisonEnd.setHours(23, 59, 59, 999)
 
 let collections = []
