@@ -1,5 +1,13 @@
 /* ===== EVENT MANAGEMENT MODULE ===== */
 
+/* Helper function to get local date string without UTC conversion */
+function getLocalDateString(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /* LOAD EVENTS SCREEN */
 async function loadEvents(){
 
@@ -960,7 +968,7 @@ try {
     Type: paymentMethod === "check" ? "Check" : "Cash",
     CheckNumber: paymentMethod === "check" ? checkNumber : "",
     Amount: amount,
-    CollectionDate: new Date().toISOString().split('T')[0],
+    CollectionDate: getLocalDateString(new Date()),
     Memo: "Event Contribution",
     CreateDate: firebase.firestore.FieldValue.serverTimestamp()
   })

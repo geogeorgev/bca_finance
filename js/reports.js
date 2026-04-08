@@ -1,5 +1,13 @@
 function loadReports(){
 
+/* Helper function to get local date string without UTC conversion */
+function getLocalDateString(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 show(`
 
 <h2>Reports</h2>
@@ -25,8 +33,8 @@ async function collectionReport(){
 const currentYear = new Date().getFullYear()
 const currentDate = new Date()
 const yearStart = new Date(currentYear, 0, 1)
-const yearStartStr = yearStart.toISOString().split('T')[0]
-const currentDateStr = currentDate.toISOString().split('T')[0]
+const yearStartStr = getLocalDateString(yearStart)
+const currentDateStr = getLocalDateString(currentDate)
 
 show(`
 
@@ -239,7 +247,7 @@ const blob = new Blob([csv], {type: "text/csv"})
 const url = URL.createObjectURL(blob)
 const a = document.createElement("a")
 a.href = url
-a.download = `Collection_Report_${new Date().toISOString().split('T')[0]}.csv`
+a.download = `Collection_Report_${getLocalDateString(new Date())}.csv`
 a.click()
 URL.revokeObjectURL(url)
 
@@ -252,8 +260,8 @@ async function expenseReport(){
 const currentYear = new Date().getFullYear()
 const currentDate = new Date()
 const yearStart = new Date(currentYear, 0, 1)
-const yearStartStr = yearStart.toISOString().split('T')[0]
-const currentDateStr = currentDate.toISOString().split('T')[0]
+const yearStartStr = getLocalDateString(yearStart)
+const currentDateStr = getLocalDateString(currentDate)
 
 show(`
 
@@ -456,7 +464,7 @@ const blob = new Blob([csv], {type: "text/csv"})
 const url = URL.createObjectURL(blob)
 const a = document.createElement("a")
 a.href = url
-a.download = `Expense_Report_${new Date().toISOString().split('T')[0]}.csv`
+a.download = `Expense_Report_${getLocalDateString(new Date())}.csv`
 a.click()
 URL.revokeObjectURL(url)
 

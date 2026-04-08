@@ -213,7 +213,13 @@ Upload Receipt (Optional)<br>
 `)
 
 // Set today's date as default
-const today = new Date().toISOString().split('T')[0]
+function getLocalDateString(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+const today = getLocalDateString(new Date())
 document.getElementById("payDate").value = today
 
 // Load initial subcategories
