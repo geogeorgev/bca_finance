@@ -88,8 +88,6 @@ let reportTitle = `Collection Report - Year ${currentYear}`
 if(reportType === "ytd"){
   startDate = new Date(currentYear, 0, 1)
   endDate = new Date()
-  // Ensure endDate includes the entire day
-  endDate.setHours(23, 59, 59, 999)
   reportTitle = `Collection Report - Year to Date (${currentYear})`
 } else if(reportType === "month"){
   const monthValue = document.getElementById("monthInput").value
@@ -103,6 +101,10 @@ if(reportType === "ytd"){
   reportTitle = `Collection Report - ${document.getElementById("startDate").value} to ${document.getElementById("endDate").value}`
 }
 
+// Ensure endDate comparison includes entire day for all report types
+const dateComparisonEnd = new Date(endDate)
+dateComparisonEnd.setHours(23, 59, 59, 999)
+
 let collections = []
 let totalAmount = 0
 
@@ -115,7 +117,7 @@ snap.forEach(doc=>{
   const [year, month, day] = dateStr.split('-')
   const collectionDate = new Date(year, month - 1, day)
 
-  if(collectionDate >= startDate && collectionDate <= endDate){
+  if(collectionDate >= startDate && collectionDate <= dateComparisonEnd){
     collections.push({
       ...d,
       collectionDateObj: collectionDate
