@@ -7,6 +7,7 @@ show(`
 <button onclick="collectionReport()">Collection Report</button>
 <button onclick="expenseReport()">Expense Report</button>
 <button onclick="showContributionStatementGenerator()">Annual Contribution Statement</button>
+<button onclick="showGuestContributionReport()" style="background: #38ef7d; color: white; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; margin-left: 5px;">👥 Guest Contributions</button>
 
 <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
   <h3>Database Management</h3>
@@ -1826,3 +1827,151 @@ try {
 }
 
 }
+
+/* SHOW GUEST CONTRIBUTION REPORT */
+async function showGuestContributionReport(){
+  const currentYear = new Date().getFullYear()
+  const today = new Date()
+
+  show(`
+
+<h2>Guest Contributions Report</h2>
+
+<label>Start Date:</label>
+<input type="date" id="guestReportStart" value="${currentYear}-01-01">
+
+<br><br>
+
+<label>End Date:</label>
+<input type="date" id="guestReportEnd" value="${today.toISOString().split('T')[0]}">
+
+<br><br>
+
+<button onclick="generateGuestContributionReport()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate Report</button>
+<button onclick="loadReports()" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">Cancel</button>
+
+  `)
+}
+
+/* GENERATE GUEST CONTRIBUTION REPORT */
+async function generateGuestContributionReport(){
+  try {
+    const startDate = document.getElementById("guestReportStart").value
+    const endDate = document.getElementById("guestReportEnd").value
+
+    if(!startDate || !endDate) {
+      alert("Please select both start and end dates")
+      return
+    }
+
+    const incomeSnap = await db.collection("income")
+      .where("MemberID", "==", "GUEST")
+      .get()
+
+    let guestContributions = []
+    let totalAmount = 0
+
+    incomeSnap.forEach(doc => {
+      const d = doc.data()
+      const [year, month, day] = d.CollectionDate.split('-')
+      const date = new Date(year, month - 1, day)
+
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+
+      if(date >= start && date <= end) {
+        totalAmount += d.Amount
+        guestContributions.push({
+          name: d.MemberName,
+          amount: d.Amount,
+          purpose: d.Purpose,
+          type: d.Type,
+          date: d.CollectionDate,
+          memo: d.Memo || ""
+        })
+      }
+    })
+
+    // Sort by date descending
+    guestContributions.sort((a, b) =>
+      new Date(b.date) - new Date(a.date)
+    )
+
+    // Generate PDF
+    const { jsPDF } = window.jspdf
+    const pdf = new jsPDF()
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+
+    // Header
+    pdf.setFontSize(16)
+    pdf.setFont(undefined, "bold")
+    pdf.text("Guest Contributions Report", 20, 20)
+
+    pdf.setFontSize(11)
+    pdf.setFont(undefined, "normal")
+    pdf.text(`Period: ${startDate} to ${endDate}`, 20, 35)
+    pdf.text(`Total Contributions: ${guestContributions.length}`, 20, 45)
+    pdf.text(`Total Amount: $${totalAmount.toFixed(2)}`, 20, 55)
+
+    let yPos = 70
+
+    // Table header
+    pdf.setFontSize(10)
+    pdf.setFont(undefined, "bold")
+    pdf.text("Date", 20, yPos)
+    pdf.text("Guest Name", 45, yPos)
+    pdf.text("Purpose", 110, yPos)
+    pdf.text("Type", 150, yPos)
+    pdf.text("Amount", 170, yPos)
+
+    // Horizontal line
+    pdf.setDrawColor(0)
+    pdf.line(20, yPos + 2, pageWidth - 20, yPos + 2)
+
+    yPos += 10
+    pdf.setFont(undefined, "normal")
+
+    // Data rows
+    guestContributions.forEach(contrib => {
+      if(yPos > pageHeight - 30) {
+        pdf.addPage()
+        yPos = 20
+      }
+
+      pdf.text(contrib.date, 20, yPos)
+
+      // Truncate long names
+      const displayName = contrib.name.length > 20
+        ? contrib.name.substring(0, 20) + "..."
+        : contrib.name
+      pdf.text(displayName, 45, yPos)
+
+      // Truncate purpose
+      const displayPurpose = contrib.purpose.length > 25
+        ? contrib.purpose.substring(0, 25) + "..."
+        : contrib.purpose
+      pdf.text(displayPurpose, 110, yPos)
+
+      pdf.text(contrib.type, 150, yPos)
+      pdf.text(`$${contrib.amount.toFixed(2)}`, 170, yPos)
+
+      yPos += 8
+    })
+
+    // Footer summary
+    yPos += 5
+    pdf.setFont(undefined, "bold")
+    pdf.text(`TOTAL: $${totalAmount.toFixed(2)}`, 170, yPos)
+
+    pdf.save(`Guest_Contributions_${startDate}_to_${endDate}.pdf`)
+
+    alert(`Report generated for ${guestContributions.length} guest contributions totaling $${totalAmount.toFixed(2)}`)
+    loadReports()
+
+  } catch(error) {
+    console.error("Error generating guest report:", error)
+    alert("Error generating report: " + error.message)
+  }
+}
+

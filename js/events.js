@@ -965,6 +965,16 @@ try {
     CreateDate: firebase.firestore.FieldValue.serverTimestamp()
   })
 
+  // Update member contribution if guardianMemberId exists
+  if(guardianMemberId){
+    const memberDoc = await db.collection("members").doc(guardianMemberId).get()
+    const total = memberDoc.data().TotalContribution || 0
+
+    await db.collection("members").doc(guardianMemberId).update({
+      TotalContribution: total + amount
+    })
+  }
+
 } catch(error){
   console.error("Error recording income: ", error)
 }
