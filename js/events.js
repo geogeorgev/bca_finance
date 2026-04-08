@@ -676,12 +676,20 @@ show(`
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
     <div>
       <label><strong>Check-In Time:</strong></label>
-      <input type="time" id="checkInTime" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+      <input type="time" id="checkInTime"
+        onmouseover="loadCurrentTime('checkInTime')"
+        title="Hover to load current time"
+        style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
+      <small style="color: #666; font-size: 11px;">💡 Hover to auto-fill current time</small>
       <button onclick="recordCheckIn('${eventId}', '${registrationId}')" style="width: 100%; padding: 10px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">✅ Check-In</button>
     </div>
     <div>
       <label><strong>Check-Out Time:</strong></label>
-      <input type="time" id="checkOutTime" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+      <input type="time" id="checkOutTime"
+        onmouseover="loadCurrentTime('checkOutTime')"
+        title="Hover to load current time"
+        style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
+      <small style="color: #666; font-size: 11px;">💡 Hover to auto-fill current time</small>
       <button onclick="recordCheckOut('${eventId}', '${registrationId}')" style="width: 100%; padding: 10px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">🚪 Check-Out</button>
     </div>
   </div>
@@ -716,6 +724,19 @@ document.getElementById("selectedDate").value = "${getLocalDateString(new Date()
 
 }
 
+/* LOAD CURRENT TIME ON HOVER */
+function loadCurrentTime(fieldId){
+  const now = new Date()
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const currentTime = `${hours}:${minutes}`
+
+  const field = document.getElementById(fieldId)
+  if(field && !field.value){
+    field.value = currentTime
+  }
+}
+
 /* RECORD CHECK-IN */
 async function recordCheckIn(eventId, registrationId){
 
@@ -727,11 +748,15 @@ if(!selectedDate || !checkInTime){
   return
 }
 
+const user = firebase.auth().currentUser
+const currentUserEmail = user ? user.email : "Unknown"
+const currentTime = new Date()
+
 const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
 const participant = regDoc.data()
-const dailyAttendance = participant.dailyAttendance || {}
 
-// Update attendance record
+// Also keep in eventRegistrations for quick access (backward compatibility)
+const dailyAttendance = participant.dailyAttendance || {}
 dailyAttendance[selectedDate] = dailyAttendance[selectedDate] || {}
 dailyAttendance[selectedDate].checkedIn = true
 dailyAttendance[selectedDate].checkInTime = checkInTime
@@ -740,7 +765,24 @@ await db.collection("eventRegistrations").doc(registrationId).update({
   dailyAttendance: dailyAttendance
 })
 
-alert(`✅ Check-in recorded for ${selectedDate} at ${checkInTime}`)
+// Save to eventAttendance collection (new approach)
+await db.collection("eventAttendance").add({
+  eventId: eventId,
+  registrationId: registrationId,
+  participantName: participant.name,
+  date: selectedDate,
+  checkInTime: checkInTime,
+  checkInBy: currentUserEmail,
+  checkInRecordedAt: currentTime,
+  checkOutTime: null,
+  checkOutBy: null,
+  checkOutRecordedAt: null,
+  createdAt: currentTime,
+  lastUpdatedAt: currentTime,
+  lastUpdatedBy: currentUserEmail
+})
+
+alert(`✅ Check-in recorded for ${selectedDate} at ${checkInTime} by ${currentUserEmail}`)
 showDailyCheckIn(eventId, registrationId, participant.name)
 
 }
@@ -756,11 +798,15 @@ if(!selectedDate || !checkOutTime){
   return
 }
 
+const user = firebase.auth().currentUser
+const currentUserEmail = user ? user.email : "Unknown"
+const currentTime = new Date()
+
 const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
 const participant = regDoc.data()
-const dailyAttendance = participant.dailyAttendance || {}
 
-// Update attendance record
+// Also keep in eventRegistrations for quick access (backward compatibility)
+const dailyAttendance = participant.dailyAttendance || {}
 dailyAttendance[selectedDate] = dailyAttendance[selectedDate] || {}
 dailyAttendance[selectedDate].checkedOut = true
 dailyAttendance[selectedDate].checkOutTime = checkOutTime
@@ -769,7 +815,44 @@ await db.collection("eventRegistrations").doc(registrationId).update({
   dailyAttendance: dailyAttendance
 })
 
-alert(`🚪 Check-out recorded for ${selectedDate} at ${checkOutTime}`)
+// Save to eventAttendance collection (new approach)
+// Try to find existing record for this date, if not create new
+const existingQuery = await db.collection("eventAttendance")
+  .where("eventId", "==", eventId)
+  .where("registrationId", "==", registrationId)
+  .where("date", "==", selectedDate)
+  .get()
+
+if(existingQuery.size > 0){
+  // Update existing record
+  const docId = existingQuery.docs[0].id
+  await db.collection("eventAttendance").doc(docId).update({
+    checkOutTime: checkOutTime,
+    checkOutBy: currentUserEmail,
+    checkOutRecordedAt: currentTime,
+    lastUpdatedAt: currentTime,
+    lastUpdatedBy: currentUserEmail
+  })
+} else {
+  // Create new record
+  await db.collection("eventAttendance").add({
+    eventId: eventId,
+    registrationId: registrationId,
+    participantName: participant.name,
+    date: selectedDate,
+    checkInTime: null,
+    checkInBy: null,
+    checkInRecordedAt: null,
+    checkOutTime: checkOutTime,
+    checkOutBy: currentUserEmail,
+    checkOutRecordedAt: currentTime,
+    createdAt: currentTime,
+    lastUpdatedAt: currentTime,
+    lastUpdatedBy: currentUserEmail
+  })
+}
+
+alert(`🚪 Check-out recorded for ${selectedDate} at ${checkOutTime} by ${currentUserEmail}`)
 showDailyCheckIn(eventId, registrationId, participant.name)
 
 }
