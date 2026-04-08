@@ -517,7 +517,7 @@ async function loadMemberAddressPhone(){
   }
 }
 
-/* SHOW CHECK-IN SCREEN */
+/* SHOW CHECK-IN SCREEN - DAILY TRACKING */
 async function showCheckIn(eventId){
 
 const eventDoc = await db.collection("events").doc(eventId).get()
@@ -527,23 +527,41 @@ const regSnap = await db.collection("eventRegistrations")
   .where("eventId", "==", eventId)
   .get()
 
+// Get event dates
+const startDate = new Date(event.startDate)
+const endDate = new Date(event.endDate)
+const eventDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+
+// Get today's date for default selection
+const today = getLocalDateString(new Date())
+const eventStartDateStr = getLocalDateString(startDate)
+
 let checkInList = ""
 
 regSnap.forEach(doc => {
   const p = doc.data()
-  const checkedInClass = p.checkedIn ? 'background-color: #c8e6c9;' : ''
-  const badgePrintedClass = p.badgePrinted ? 'background-color: #fff9c4;' : ''
+  const dailyAttendance = p.dailyAttendance || {}
+
+  // Count check-in days
+  let checkedInDays = 0
+  Object.values(dailyAttendance).forEach(day => {
+    if(day.checkedIn) checkedInDays++
+  })
+
+  const attendancePercentage = eventDays > 0 ? Math.round((checkedInDays / eventDays) * 100) : 0
+  const statusColor = attendancePercentage === 100 ? '#4caf50' : attendancePercentage >= 50 ? '#ff9800' : '#f44336'
 
   checkInList += `
-  <div style="background: white; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 4px solid ${p.checkedIn ? '#4caf50' : '#ccc'}; ${checkedInClass}">
+  <div style="background: white; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 4px solid ${statusColor};">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <div>
         <h4 style="margin: 0;">${p.name}</h4>
         <p style="margin: 5px 0; font-size: 12px;">Guardian: ${p.guardian} | Phone: ${p.phone}</p>
+        <p style="margin: 5px 0; font-size: 11px; color: #666;">Attendance: ${checkedInDays}/${eventDays} days (${attendancePercentage}%)</p>
       </div>
       <div style="text-align: right;">
-        <button onclick="toggleCheckIn('${eventId}', '${doc.id}', ${!p.checkedIn})" style="padding: 6px 12px; background: ${p.checkedIn ? '#ff5252' : '#4caf50'}; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
-          ${p.checkedIn ? '❌ Check Out' : '✅ Check In'}
+        <button onclick="showDailyCheckIn('${eventId}', '${doc.id}', '${p.name}')" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">
+          📅 Daily Check-in
         </button>
         <button onclick="printBadge('${eventId}', '${doc.id}', '${p.name}')" style="padding: 6px 12px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">🖨️ Print Badge</button>
         <button onclick="editParticipant('${eventId}', '${doc.id}')" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">✏️ Edit</button>
@@ -555,11 +573,17 @@ regSnap.forEach(doc => {
 
 show(`
 
-<h2>${event.name} - Check-In</h2>
+<h2>${event.name} - Daily Check-In/Check-Out</h2>
 
-<div style="margin-bottom: 20px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+<div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+  <h4 style="margin-top: 0;">Event Duration</h4>
+  <p style="margin: 5px 0;"><strong>Dates:</strong> ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>
+  <p style="margin: 5px 0;"><strong>Total Days:</strong> ${eventDays}</p>
+</div>
+
+<div style="margin-bottom: 20px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
   <input type="text" id="searchParticipant" placeholder="Search participant by name..." onkeyup="filterCheckInList()"
-    style="width: 100%; padding: 10px; border: 1px solid #2196f3; border-radius: 4px; font-size: 14px;">
+    style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
 </div>
 
 <div id="checkInListContainer">
@@ -576,16 +600,177 @@ ${checkInList.length > 0 ? checkInList : '<p>No participants registered yet</p>'
 }
 
 
-/* TOGGLE CHECK-IN STATUS */
-async function toggleCheckIn(eventId, registrationId, checkIn){
+/* SHOW DAILY CHECK-IN/CHECK-OUT INTERFACE */
+async function showDailyCheckIn(eventId, registrationId, participantName){
 
-const regRef = db.collection("eventRegistrations").doc(registrationId)
+const eventDoc = await db.collection("events").doc(eventId).get()
+const event = eventDoc.data()
 
-await regRef.update({
-  checkedIn: checkIn
+const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
+const participant = regDoc.data()
+
+const startDate = new Date(event.startDate)
+const endDate = new Date(event.endDate)
+const dailyAttendance = participant.dailyAttendance || {}
+
+// Generate date range
+let dateOptions = ""
+let currentDate = new Date(startDate)
+
+while(currentDate <= endDate){
+  const dateStr = getLocalDateString(currentDate)
+  const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' })
+  const display = `${dayName}, ${currentDate.toLocaleDateString()}`
+  const dayData = dailyAttendance[dateStr] || {}
+  const status = dayData.checkedIn ? '✅' : dayData.checkedOut ? '🚪' : '⭕'
+
+  dateOptions += `<option value="${dateStr}">${status} ${display}</option>`
+  currentDate.setDate(currentDate.getDate() + 1)
+}
+
+// Get today's attendance record
+const today = getLocalDateString(new Date())
+const todayData = dailyAttendance[today] || {}
+
+let attendanceSummary = ""
+Object.keys(dailyAttendance).sort().forEach(dateStr => {
+  const dayData = dailyAttendance[dateStr]
+  const date = new Date(dateStr)
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
+  const checkInTime = dayData.checkInTime ? dayData.checkInTime : '—'
+  const checkOutTime = dayData.checkOutTime ? dayData.checkOutTime : '—'
+  const status = dayData.checkedIn ? '✅ In' : dayData.checkedOut ? '🚪 Out' : '⭕ Absent'
+
+  attendanceSummary += `
+  <tr style="border-bottom: 1px solid #ddd;">
+    <td style="padding: 8px;">${dayName}</td>
+    <td style="padding: 8px;">${dateStr}</td>
+    <td style="padding: 8px; text-align: center;">${status}</td>
+    <td style="padding: 8px;">${checkInTime}</td>
+    <td style="padding: 8px;">${checkOutTime}</td>
+  </tr>
+  `
 })
 
-showCheckIn(eventId)
+show(`
+
+<h2>${participantName} - Daily Check-In/Check-Out</h2>
+
+<div style="background: #f0f4ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+  <h4 style="margin-top: 0;">Event: ${event.name}</h4>
+  <p style="margin: 5px 0;"><strong>Duration:</strong> ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>
+  <p style="margin: 5px 0;"><strong>Participant:</strong> ${participantName}</p>
+  <p style="margin: 5px 0;"><strong>Guardian:</strong> ${participant.guardian}</p>
+</div>
+
+<h3>Today's Check-In/Check-Out</h3>
+
+<label>Select Date:</label>
+<select id="selectedDate" onchange="updateTodayStatus()" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+  ${dateOptions}
+</select>
+
+<br><br>
+
+<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+    <div>
+      <label><strong>Check-In Time:</strong></label>
+      <input type="time" id="checkInTime" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+      <button onclick="recordCheckIn('${eventId}', '${registrationId}')" style="width: 100%; padding: 10px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">✅ Check-In</button>
+    </div>
+    <div>
+      <label><strong>Check-Out Time:</strong></label>
+      <input type="time" id="checkOutTime" style="width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #ccc; border-radius: 4px;">
+      <button onclick="recordCheckOut('${eventId}', '${registrationId}')" style="width: 100%; padding: 10px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">🚪 Check-Out</button>
+    </div>
+  </div>
+</div>
+
+<h3>Attendance Summary</h3>
+
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+  <thead style="background: #667eea; color: white;">
+    <tr>
+      <th style="padding: 10px; text-align: left;">Day</th>
+      <th style="padding: 10px; text-align: left;">Date</th>
+      <th style="padding: 10px; text-align: center;">Status</th>
+      <th style="padding: 10px; text-align: left;">Check-In</th>
+      <th style="padding: 10px; text-align: left;">Check-Out</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${attendanceSummary.length > 0 ? attendanceSummary : '<tr><td colspan="5" style="padding: 15px; text-align: center; color: #999;">No attendance records yet</td></tr>'}
+  </tbody>
+</table>
+
+<button onclick="showCheckIn('${eventId}')" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Back to Check-In</button>
+<button onclick="loadEvents()" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Back to Events</button>
+
+<script>
+// Set today's date as selected
+document.getElementById("selectedDate").value = "${getLocalDateString(new Date())}"
+</script>
+
+`)
+
+}
+
+/* RECORD CHECK-IN */
+async function recordCheckIn(eventId, registrationId){
+
+const selectedDate = document.getElementById("selectedDate").value
+const checkInTime = document.getElementById("checkInTime").value
+
+if(!selectedDate || !checkInTime){
+  alert("Please select date and check-in time")
+  return
+}
+
+const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
+const participant = regDoc.data()
+const dailyAttendance = participant.dailyAttendance || {}
+
+// Update attendance record
+dailyAttendance[selectedDate] = dailyAttendance[selectedDate] || {}
+dailyAttendance[selectedDate].checkedIn = true
+dailyAttendance[selectedDate].checkInTime = checkInTime
+
+await db.collection("eventRegistrations").doc(registrationId).update({
+  dailyAttendance: dailyAttendance
+})
+
+alert(`✅ Check-in recorded for ${selectedDate} at ${checkInTime}`)
+showDailyCheckIn(eventId, registrationId, participant.name)
+
+}
+
+/* RECORD CHECK-OUT */
+async function recordCheckOut(eventId, registrationId){
+
+const selectedDate = document.getElementById("selectedDate").value
+const checkOutTime = document.getElementById("checkOutTime").value
+
+if(!selectedDate || !checkOutTime){
+  alert("Please select date and check-out time")
+  return
+}
+
+const regDoc = await db.collection("eventRegistrations").doc(registrationId).get()
+const participant = regDoc.data()
+const dailyAttendance = participant.dailyAttendance || {}
+
+// Update attendance record
+dailyAttendance[selectedDate] = dailyAttendance[selectedDate] || {}
+dailyAttendance[selectedDate].checkedOut = true
+dailyAttendance[selectedDate].checkOutTime = checkOutTime
+
+await db.collection("eventRegistrations").doc(registrationId).update({
+  dailyAttendance: dailyAttendance
+})
+
+alert(`🚪 Check-out recorded for ${selectedDate} at ${checkOutTime}`)
+showDailyCheckIn(eventId, registrationId, participant.name)
 
 }
 
