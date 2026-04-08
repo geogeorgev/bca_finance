@@ -1,3 +1,13 @@
+/* ===== INCOME MANAGEMENT MODULE ===== */
+
+/* Helper function to get local date string without UTC conversion */
+function getLocalDateString(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 async function loadIncome(){
 
 
@@ -56,7 +66,7 @@ ${members}
 <br>
 
 <label>Collection Date</label>
-<input type="date" id="collectionDate" value="${new Date().toISOString().split('T')[0]}">
+<input type="date" id="collectionDate" value="${getLocalDateString(new Date())}">
 
 <br><br>
 

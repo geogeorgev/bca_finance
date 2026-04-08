@@ -1,5 +1,13 @@
 function loadReports(){
 
+/* Helper function to get local date string without UTC conversion */
+function getLocalDateString(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 show(`
 
 <h2>Reports</h2>
@@ -7,6 +15,7 @@ show(`
 <button onclick="collectionReport()">Collection Report</button>
 <button onclick="expenseReport()">Expense Report</button>
 <button onclick="showContributionStatementGenerator()">Annual Contribution Statement</button>
+<button onclick="showGuestContributionStatement()" style="background: #38ef7d; color: white; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; margin-left: 5px;">👥 Guest Contributions Statement</button>
 
 <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
   <h3>Database Management</h3>
@@ -24,8 +33,8 @@ async function collectionReport(){
 const currentYear = new Date().getFullYear()
 const currentDate = new Date()
 const yearStart = new Date(currentYear, 0, 1)
-const yearStartStr = yearStart.toISOString().split('T')[0]
-const currentDateStr = currentDate.toISOString().split('T')[0]
+const yearStartStr = getLocalDateString(yearStart)
+const currentDateStr = getLocalDateString(currentDate)
 
 show(`
 
@@ -86,21 +95,26 @@ let reportTitle = `Collection Report - Year ${currentYear}`
 
 if(reportType === "ytd"){
   startDate = new Date(currentYear, 0, 1)
+  startDate.setHours(0, 0, 0, 0)  // Ensure start is at beginning of day
   endDate = new Date()
-  // Ensure endDate includes the entire day
-  endDate.setHours(23, 59, 59, 999)
   reportTitle = `Collection Report - Year to Date (${currentYear})`
 } else if(reportType === "month"){
   const monthValue = document.getElementById("monthInput").value
   const [year, month] = monthValue.split('-')
   startDate = new Date(year, month - 1, 1)
+  startDate.setHours(0, 0, 0, 0)  // Ensure start is at beginning of day
   endDate = new Date(year, month, 0)
   reportTitle = `Collection Report - ${monthValue}`
 } else if(reportType === "custom"){
   startDate = new Date(document.getElementById("startDate").value)
+  startDate.setHours(0, 0, 0, 0)  // Ensure start is at beginning of day
   endDate = new Date(document.getElementById("endDate").value)
   reportTitle = `Collection Report - ${document.getElementById("startDate").value} to ${document.getElementById("endDate").value}`
 }
+
+// Ensure endDate comparison includes entire day for all report types
+const dateComparisonEnd = new Date(endDate.getTime())
+dateComparisonEnd.setHours(23, 59, 59, 999)
 
 let collections = []
 let totalAmount = 0
@@ -114,7 +128,7 @@ snap.forEach(doc=>{
   const [year, month, day] = dateStr.split('-')
   const collectionDate = new Date(year, month - 1, day)
 
-  if(collectionDate >= startDate && collectionDate <= endDate){
+  if(collectionDate >= startDate && collectionDate <= dateComparisonEnd){
     collections.push({
       ...d,
       collectionDateObj: collectionDate
@@ -148,7 +162,11 @@ let html = `
 collections.forEach(c => {
   const collDate = c.collectionDateObj.toLocaleDateString()
   const createDate = c.CreateDate ? (c.CreateDate.toDate ? new Date(c.CreateDate.toDate()).toLocaleDateString() : new Date(c.CreateDate).toLocaleDateString()) : ""
-  const memberName = c.MemberName || "N/A"
+  let memberName = c.MemberName || "N/A"
+  // Mark guest contributions for clarity
+  if(c.MemberID === "GUEST") {
+    memberName = `${c.MemberName} (Guest)`
+  }
   const type = c.Type || ""
   const purpose = c.Purpose || ""
   const checkNum = c.CheckNumber || ""
@@ -207,7 +225,11 @@ csv += "Collection Date,Create Date,Member Name,Type,Purpose,Check #,Amount,Memo
 collections.forEach(c => {
   const collDate = c.collectionDateObj.toLocaleDateString()
   const createDate = c.CreateDate ? (c.CreateDate.toDate ? new Date(c.CreateDate.toDate()).toLocaleDateString() : new Date(c.CreateDate).toLocaleDateString()) : ""
-  const memberName = (c.MemberName || "N/A").replace(/,/g, ";")
+  let memberName = (c.MemberName || "N/A").replace(/,/g, ";")
+  // Mark guest contributions
+  if(c.MemberID === "GUEST") {
+    memberName = `${memberName} (Guest)`
+  }
   const type = (c.Type || "").replace(/,/g, ";")
   const purpose = (c.Purpose || "").replace(/,/g, ";")
   const checkNum = (c.CheckNumber || "").replace(/,/g, ";")
@@ -225,7 +247,7 @@ const blob = new Blob([csv], {type: "text/csv"})
 const url = URL.createObjectURL(blob)
 const a = document.createElement("a")
 a.href = url
-a.download = `Collection_Report_${new Date().toISOString().split('T')[0]}.csv`
+a.download = `Collection_Report_${getLocalDateString(new Date())}.csv`
 a.click()
 URL.revokeObjectURL(url)
 
@@ -238,8 +260,8 @@ async function expenseReport(){
 const currentYear = new Date().getFullYear()
 const currentDate = new Date()
 const yearStart = new Date(currentYear, 0, 1)
-const yearStartStr = yearStart.toISOString().split('T')[0]
-const currentDateStr = currentDate.toISOString().split('T')[0]
+const yearStartStr = getLocalDateString(yearStart)
+const currentDateStr = getLocalDateString(currentDate)
 
 show(`
 
@@ -442,7 +464,7 @@ const blob = new Blob([csv], {type: "text/csv"})
 const url = URL.createObjectURL(blob)
 const a = document.createElement("a")
 a.href = url
-a.download = `Expense_Report_${new Date().toISOString().split('T')[0]}.csv`
+a.download = `Expense_Report_${getLocalDateString(new Date())}.csv`
 a.click()
 URL.revokeObjectURL(url)
 
@@ -1109,11 +1131,15 @@ pdf.setFont(undefined, "normal")
 
 pdf.text("____________________", 20, yPosition)
 yPosition += 5
+pdf.text("Pastor and President", 20, yPosition)
+yPosition += 3
 pdf.text(pastorAndPresident, 20, yPosition)
 
-yPosition -= 5
+yPosition -= 8
 pdf.text("____________________", pageWidth - 50, yPosition)
 yPosition += 5
+pdf.text("Treasurer", pageWidth - 50, yPosition)
+yPosition += 3
 pdf.text(treasurer, pageWidth - 50, yPosition)
 
 yPosition += 15
@@ -1231,12 +1257,17 @@ const mergedColCenterX = tableStartX + leftColWidth + (rightColWidth / 2)
 // "Prepared by" text
 pdf.text("Prepared by", mergedColCenterX, tableStartY + 32, { align: "center" })
 
-// Treasurer's full name
+// Treasurer label
 pdf.setFont(undefined, "normal")
-pdf.text(treasurer, mergedColCenterX, tableStartY + 38, { align: "center" })
+pdf.setFontSize(7)
+pdf.text("Treasurer", mergedColCenterX, tableStartY + 37, { align: "center" })
+
+// Treasurer's full name
+pdf.setFontSize(8)
+pdf.text(treasurer, mergedColCenterX, tableStartY + 42, { align: "center" })
 
 // Organization name
-pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 44, { align: "center" })
+pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 48, { align: "center" })
 
 yPosition = tableStartY + 100
 
@@ -1413,11 +1444,15 @@ for(const member of activeMembers){
 
   pdf.text("____________________", 20, yPosition)
   yPosition += 5
+  pdf.text("Pastor and President", 20, yPosition)
+  yPosition += 3
   pdf.text(pastorAndPresident, 20, yPosition)
 
-  yPosition -= 5
+  yPosition -= 8
   pdf.text("____________________", pageWidth - 50, yPosition)
   yPosition += 5
+  pdf.text("Treasurer", pageWidth - 50, yPosition)
+  yPosition += 3
   pdf.text(treasurer, pageWidth - 50, yPosition)
 
   yPosition += 15
@@ -1535,12 +1570,17 @@ for(const member of activeMembers){
   // "Prepared by" text
   pdf.text("Prepared by", mergedColCenterX, tableStartY + 32, { align: "center" })
 
-  // Treasurer's full name
+  // Treasurer label
   pdf.setFont(undefined, "normal")
-  pdf.text(treasurer, mergedColCenterX, tableStartY + 38, { align: "center" })
+  pdf.setFontSize(7)
+  pdf.text("Treasurer", mergedColCenterX, tableStartY + 37, { align: "center" })
+
+  // Treasurer's full name
+  pdf.setFontSize(8)
+  pdf.text(treasurer, mergedColCenterX, tableStartY + 42, { align: "center" })
 
   // Organization name
-  pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 44, { align: "center" })
+  pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 48, { align: "center" })
 
   yPosition = tableStartY + 100
 
@@ -1808,3 +1848,323 @@ try {
 }
 
 }
+
+/* SHOW GUEST CONTRIBUTION STATEMENT */
+async function showGuestContributionStatement(){
+  const currentYear = new Date().getFullYear()
+
+  // Get unique guest names
+  const incomeSnap = await db.collection("income")
+    .where("MemberID", "==", "GUEST")
+    .get()
+
+  let uniqueGuests = []
+  const guestSet = new Set()
+
+  incomeSnap.forEach(doc => {
+    const d = doc.data()
+    if(!guestSet.has(d.MemberName)) {
+      guestSet.add(d.MemberName)
+      uniqueGuests.push(d.MemberName)
+    }
+  })
+
+  // Sort by name
+  uniqueGuests.sort()
+
+  let guestOptions = ""
+  uniqueGuests.forEach(guest => {
+    guestOptions += `<option value="${guest}">${guest}</option>`
+  })
+
+  show(`
+
+<h2>Guest Contributions Statement</h2>
+
+<p>Generate annual contribution statements for guest donors</p>
+
+<label>Select Guest:</label>
+<select id="selectedGuest">
+  <option value="">-- Select a guest --</option>
+  ${guestOptions}
+</select>
+
+<br><br>
+
+<label>Tax Year:</label>
+<input type="number" id="guestTaxYear" value="${currentYear}">
+
+<br><br>
+
+<button onclick="generateGuestContributionStatement()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate PDF</button>
+<button onclick="loadReports()" style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">Cancel</button>
+
+  `)
+}
+
+/* GENERATE GUEST CONTRIBUTION STATEMENT */
+async function generateGuestContributionStatement(){
+  const selectedGuest = document.getElementById("selectedGuest").value
+  const taxYear = parseInt(document.getElementById("guestTaxYear").value)
+
+  if(!selectedGuest){
+    alert("Please select a guest")
+    return
+  }
+
+  // Get all contributions for this guest
+  const incomeSnap = await db.collection("income")
+    .where("MemberID", "==", "GUEST")
+    .get()
+
+  let totalContribution = 0
+  let contributions = []
+
+  incomeSnap.forEach(doc => {
+    const d = doc.data()
+    // Only include records for the selected guest
+    if(d.MemberName !== selectedGuest) return
+
+    const dateStr = d.CollectionDate
+    const [year, month, day] = dateStr.split('-')
+    const date = new Date(year, month - 1, day)
+
+    // Filter by year
+    if(date.getFullYear() === taxYear){
+      totalContribution += d.Amount
+      contributions.push({
+        date: d.CollectionDate,
+        purpose: d.Purpose,
+        amount: d.Amount
+      })
+    }
+  })
+
+  // Sort by date
+  contributions.sort((a, b) => {
+    const dateA = new Date(a.date)
+    const dateB = new Date(b.date)
+    return dateA - dateB
+  })
+
+  // Fetch Pastor and Treasurer names
+  const { pastorAndPresident, treasurer } = await getPastorAndTreasurerNames()
+
+  // Generate PDF (reusing member statement logic)
+  const { jsPDF } = window.jspdf
+
+  const pdf = new jsPDF()
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const pageHeight = pdf.internal.pageSize.getHeight()
+  let yPosition = 10
+
+  // Add header image
+  try {
+    const headerResponse = await fetch('BCA_pdf_header.jpg')
+    const headerBlob = await headerResponse.blob()
+    const headerDataUrl = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(headerBlob)
+    })
+
+    pdf.addImage(headerDataUrl, 'JPEG', 10, 10, pageWidth - 20, 35)
+    yPosition = 50
+  } catch(e) {
+    console.warn("Header image not found, using text header")
+
+    try {
+      const logoResponse = await fetch('logo.png')
+      const logoBlob = await logoResponse.blob()
+      const logoDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsDataURL(logoBlob)
+      })
+
+      pdf.addImage(logoDataUrl, 'PNG', 12, 10, 25, 25)
+    } catch(e2) {
+      console.warn("Logo image not found either")
+    }
+
+    yPosition = 12
+    pdf.setFontSize(13)
+    pdf.setFont(undefined, "bold")
+    pdf.text("The Boston Christian Assembly", 42, yPosition)
+
+    yPosition += 6
+    pdf.setFontSize(9)
+    pdf.setFont(undefined, "normal")
+    pdf.text("26 Wellesley Road, Natick, MA 01760  |  Tel: 781-883-9708  |  www.bostonchristian.net", 42, yPosition)
+
+    yPosition = 40
+  }
+
+  // Salutation
+  pdf.setFontSize(10)
+  pdf.text("Dear " + selectedGuest.split(" ")[0] + ",", 20, yPosition)
+
+  yPosition += 8
+
+  // Letter content
+  pdf.setFontSize(10)
+  pdf.setFont(undefined, "normal")
+
+  const letterText1 = "The pastors and board members of the church thank you for your faithful support for the ongoing Ministries of the church."
+  pdf.text(letterText1, 20, yPosition, { maxWidth: pageWidth - 40 })
+  yPosition += 12
+
+  const letterText2 = `We have prepared the annual contribution for the year ${taxYear} from the records of the church. Please note that item 1 is the amount of total tax-deductible donations that were recorded by the church.`
+  pdf.text(letterText2, 20, yPosition, { maxWidth: pageWidth - 40 })
+  yPosition += 12
+
+  const letterText3 = "It is our prayer that the Lord will continue to bless you in your commitment to give sacrificially for the needs of the church."
+  pdf.text(letterText3, 20, yPosition, { maxWidth: pageWidth - 40 })
+  yPosition += 12
+
+  const letterText4 = "Yours in His Servants in Christ"
+  pdf.text(letterText4, 20, yPosition)
+
+  yPosition += 12
+
+  // Signatures with actual names
+  pdf.setFontSize(9)
+  pdf.setFont(undefined, "normal")
+
+  pdf.text("____________________", 20, yPosition)
+  yPosition += 5
+  pdf.text("Pastor and President", 20, yPosition)
+  yPosition += 3
+  pdf.text(pastorAndPresident, 20, yPosition)
+
+  yPosition -= 8
+  pdf.text("____________________", pageWidth - 50, yPosition)
+  yPosition += 5
+  pdf.text("Treasurer", pageWidth - 50, yPosition)
+  yPosition += 3
+  pdf.text(treasurer, pageWidth - 50, yPosition)
+
+  yPosition += 15
+
+  // Receipt Table Section
+  const tableStartY = yPosition
+  const tableStartX = 20
+  const tableWidth = pageWidth - 40
+  const leftColWidth = tableWidth / 2
+  const rightColWidth = tableWidth / 2
+
+  // Draw table lines
+  const lineColor = [0, 0, 0]
+  pdf.setDrawColor(...lineColor)
+  pdf.setLineWidth(0.8)
+
+  pdf.rect(tableStartX, tableStartY, tableWidth, 95)
+  pdf.line(tableStartX + leftColWidth, tableStartY, tableStartX + leftColWidth, tableStartY + 95)
+
+  const rightColStartX = tableStartX + leftColWidth
+  const col1Divide = rightColStartX + (rightColWidth / 3)
+  const col2Divide = rightColStartX + (2 * rightColWidth / 3)
+
+  pdf.line(col1Divide, tableStartY, col1Divide, tableStartY + 25)
+  pdf.line(col2Divide, tableStartY, col2Divide, tableStartY + 25)
+
+  pdf.line(tableStartX, tableStartY + 25, tableStartX + tableWidth, tableStartY + 25)
+  pdf.line(tableStartX, tableStartY + 40, tableStartX + leftColWidth, tableStartY + 40)
+  pdf.line(tableStartX, tableStartY + 50, tableStartX + leftColWidth, tableStartY + 50)
+  pdf.line(tableStartX, tableStartY + 68, tableStartX + leftColWidth, tableStartY + 68)
+  pdf.line(tableStartX, tableStartY + 79, tableStartX + leftColWidth, tableStartY + 79)
+
+  // LEFT COLUMN - HEADER
+  pdf.setFontSize(8)
+  pdf.setFont(undefined, "bold")
+  pdf.text("RECIPIENT ORGANIZATION's", tableStartX + 2, tableStartY + 3)
+  pdf.text("Name & Address", tableStartX + 2, tableStartY + 6)
+
+  // LEFT COLUMN - DATA ROWS
+  pdf.setFont(undefined, "normal")
+  pdf.text("The Boston Christian Assembly", tableStartX + 2, tableStartY + 15)
+  pdf.text("26 Wellesley Road, Natick, MA 01760", tableStartX + 2, tableStartY + 19)
+
+  // RIGHT COLUMN - HEADER ROW
+  pdf.setFontSize(7)
+  pdf.setFont(undefined, "bold")
+  const rightColX = tableStartX + leftColWidth + 2
+
+  pdf.text("1. Total Tax Deductible", rightColX, tableStartY + 3)
+  pdf.text("Contributions", rightColX, tableStartY + 6)
+
+  pdf.text("2. Year", rightColX + 30, tableStartY + 5)
+
+  pdf.text("3. Annual", rightColX + 55, tableStartY + 3)
+  pdf.text("Contribution", rightColX + 55, tableStartY + 6)
+  pdf.text("Record", rightColX + 55, tableStartY + 9)
+
+  // RIGHT COLUMN - DATA ROW
+  pdf.setFontSize(10)
+  pdf.setFont(undefined, "bold")
+  pdf.text(`$${totalContribution.toFixed(2)}`, rightColX, tableStartY + 20)
+  pdf.text(taxYear.toString(), rightColX + 30, tableStartY + 20)
+  pdf.text(`$${totalContribution.toFixed(2)}`, rightColX + 55, tableStartY + 20)
+
+  // Federal ID section
+  pdf.setFontSize(8)
+  pdf.setFont(undefined, "bold")
+  pdf.text("RECIPIENT ORGANIZATION's Federal Identification No.", tableStartX + 2, tableStartY + 32)
+  pdf.setFont(undefined, "normal")
+  pdf.text("04-3144979", tableStartX + 2, tableStartY + 38)
+
+  // Donor SSN section
+  pdf.setFontSize(8)
+  pdf.setFont(undefined, "bold")
+  pdf.text("Donor's Social Security or C.I.D. No.", tableStartX + 2, tableStartY + 47)
+
+  // Donor Name section
+  pdf.setFont(undefined, "bold")
+  pdf.text("Donor's Name (First, Middle, Last):", tableStartX + 2, tableStartY + 58)
+  pdf.setFont(undefined, "normal")
+  pdf.text(selectedGuest, tableStartX + 2, tableStartY + 64)
+
+  // Street Address section
+  pdf.setFont(undefined, "bold")
+  pdf.text("Street Address:", tableStartX + 2, tableStartY + 72)
+
+  // City, State and Zip Code section
+  pdf.setFont(undefined, "bold")
+  pdf.text("City, State and Zip Code:", tableStartX + 2, tableStartY + 88)
+
+  // Prepared by section - merged column, centered
+  pdf.setFontSize(8)
+  pdf.setFont(undefined, "bold")
+
+  const mergedColCenterX = tableStartX + leftColWidth + (rightColWidth / 2)
+
+  pdf.text("Prepared by", mergedColCenterX, tableStartY + 32, { align: "center" })
+
+  pdf.setFont(undefined, "normal")
+  pdf.setFontSize(7)
+  pdf.text("Treasurer", mergedColCenterX, tableStartY + 37, { align: "center" })
+
+  pdf.setFontSize(8)
+  pdf.text(treasurer, mergedColCenterX, tableStartY + 42, { align: "center" })
+
+  pdf.text("Boston Christian Assembly", mergedColCenterX, tableStartY + 48, { align: "center" })
+
+  yPosition = tableStartY + 100
+
+  // Disclaimer
+  pdf.setFontSize(8)
+  pdf.setFont(undefined, "normal")
+  const disclaimerText = "This information has not been submitted to the Internal Revenue Service. This information is not given with the intentions of offering tax advice or an explanation of the law."
+  pdf.text(disclaimerText, 20, yPosition, { maxWidth: pageWidth - 40 })
+
+  yPosition += 8
+
+  pdf.text(`Form 11(71-1997) Year End Contribution Receipt     |     File BCA/${taxYear}Receipts`, 20, yPosition)
+
+  // Save PDF
+  pdf.save(`${selectedGuest}_Guest_Contribution_Receipt_${taxYear}.pdf`)
+
+  alert(`Guest contribution statement generated for ${selectedGuest}`)
+  loadReports()
+}
+

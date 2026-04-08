@@ -37,6 +37,7 @@ show(`
 
 <button onclick="showAddAsset()" style="background:#4caf50;">➕ Add New Asset</button>
 <button onclick="loadAssets()" style="background:#2196f3;">🔄 Refresh</button>
+<button onclick="generateAssetReport()" style="background:#667eea;">🖨️ Print Report</button>
 
 <br><br>
 
@@ -53,14 +54,33 @@ displayAssets()
 /* DISPLAY ALL ASSETS - HORIZONTAL TABLE */
 async function displayAssets(){
 
-const snap = await db.collection("assets").orderBy("Category").orderBy("AssetName").get()
+try {
+  const snap = await db.collection("assets").orderBy("AssetName").get()
 
-if(snap.empty){
-  document.getElementById("assetList").innerHTML = `<p style="color:#999; text-align:center; padding:40px;">No assets found. <a href="javascript:showAddAsset()" style="color:#2196f3;">Add one now</a></p>`
-  return
-}
+  if(snap.empty){
+    document.getElementById("assetList").innerHTML = `<p style="color:#999; text-align:center; padding:40px;">No assets found. <a href="javascript:showAddAsset()" style="color:#2196f3;">Add one now</a></p>`
+    return
+  }
 
-let html = `
+  // Convert to array and sort by Category, then by AssetName
+  let assets = []
+  snap.forEach((doc, index) => {
+    assets.push({
+      id: doc.id,
+      data: doc.data(),
+      index: index
+    })
+  })
+
+  // Sort by Category first, then by AssetName
+  assets.sort((a, b) => {
+    const catA = (a.data.Category || "").toLowerCase()
+    const catB = (b.data.Category || "").toLowerCase()
+    if(catA !== catB) return catA.localeCompare(catB)
+    return a.data.AssetName.localeCompare(b.data.AssetName)
+  })
+
+  let html = `
 <div style="overflow-x:auto; margin-top:20px;">
 <table style="width:100%; border-collapse:collapse; background:white; box-shadow:0 2px 8px rgba(0,0,0,0.1); border-radius:8px;">
   <thead>
@@ -80,21 +100,21 @@ let html = `
   <tbody>
 `
 
-snap.forEach((doc, index) => {
-  const asset = doc.data()
-  const rowColor = index % 2 === 0 ? "#f9f9f9" : "white"
+  assets.forEach((item, displayIndex) => {
+    const asset = item.data
+    const rowColor = displayIndex % 2 === 0 ? "#f9f9f9" : "white"
 
-  const conditionColor = {
-    "Excellent": "#4caf50",
-    "Good": "#8bc34a",
-    "Fair": "#ff9800",
-    "Poor": "#f44336",
-    "Needs Repair": "#d32f2f"
-  }[asset.Condition] || "#999"
+    const conditionColor = {
+      "Excellent": "#4caf50",
+      "Good": "#8bc34a",
+      "Fair": "#ff9800",
+      "Poor": "#f44336",
+      "Needs Repair": "#d32f2f"
+    }[asset.Condition] || "#999"
 
-  html += `
+    html += `
   <tr class="assetRow" style="background:${rowColor}; border-bottom:1px solid #ddd;">
-    <td style="padding:12px; border:1px solid #ddd;"><b>${asset.AssetName}</b></td>
+    <td style="padding:12px; border:1px solid #ddd;"><b>${asset.AssetName}</b> ${asset.AssetImage ? '<span style="color:#4caf50; font-size:14px;">📸</span>' : ''}</td>
     <td style="padding:12px; border:1px solid #ddd;"><span style="background:#e3f2fd; color:#1976d2; padding:4px 8px; border-radius:4px; font-size:12px;">${asset.Category || "N/A"}</span></td>
     <td style="padding:12px; border:1px solid #ddd;">${asset.SerialNumber || "-"}</td>
     <td style="padding:12px; border:1px solid #ddd;">${asset.Make || "-"} ${asset.Model ? "/ " + asset.Model : ""}</td>
@@ -104,20 +124,26 @@ snap.forEach((doc, index) => {
     <td style="padding:12px; border:1px solid #ddd;">${asset.Cost ? "$" + asset.Cost.toFixed(2) : "-"}</td>
     <td style="padding:12px; border:1px solid #ddd;"><span style="background:${conditionColor}20; color:${conditionColor}; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${asset.Condition || "-"}</span></td>
     <td style="padding:12px; border:1px solid #ddd; text-align:center; white-space:nowrap;">
-      <button onclick="editAsset('${doc.id}')" style="background:#2196f3; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">✏️</button>
-      <button onclick="deleteAsset('${doc.id}', '${asset.AssetName}')" style="background:#f44336; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">🗑️</button>
+      ${asset.AssetImage ? `<button onclick="viewAssetImage('${item.id}', '${asset.AssetName}')" style="background:#4caf50; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;" title="View image">👁️</button>` : ''}
+      <button onclick="editAsset('${item.id}')" style="background:#2196f3; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">✏️</button>
+      <button onclick="deleteAsset('${item.id}', '${asset.AssetName}')" style="background:#f44336; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; margin:2px; font-size:12px;">🗑️</button>
     </td>
   </tr>
   `
-})
+  })
 
-html += `
+  html += `
   </tbody>
 </table>
 </div>
 `
 
-document.getElementById("assetList").innerHTML = html
+  document.getElementById("assetList").innerHTML = html
+
+} catch(error) {
+  console.error("Error loading assets:", error)
+  document.getElementById("assetList").innerHTML = `<p style="color:#d32f2f; text-align:center; padding:40px;">Error loading assets: ${error.message}</p>`
+}
 
 }
 
@@ -198,8 +224,17 @@ ${categoryOptions}
 
 <br><br>
 
-<button onclick="saveAsset()">Save Asset</button>
-<button onclick="loadAssets()">Cancel</button>
+<div style="background:#f0f7ff; border:2px solid #2196f3; border-radius:6px; padding:15px; margin:15px 0;">
+  <h3 style="margin-top:0; color:#1976d2;">📸 Asset Image (Optional)</h3>
+  <p style="margin:5px 0; color:#666; font-size:13px;">Upload a photo of this asset for visual identification</p>
+  <input type="file" id="assetImage" accept="image/*" style="margin: 10px 0; padding:8px; border:1px solid #2196f3; border-radius:4px; width:100%; box-sizing:border-box;">
+  <small style="color: #666; display:block; margin-top:5px;">✓ Formats: JPG, PNG | ✓ Max size: 700KB</small>
+</div>
+
+<br>
+
+<button onclick="saveAsset()" style="background:#4caf50; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">💾 Save Asset</button>
+<button onclick="loadAssets()" style="background:#999; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; margin-left:5px; font-size:14px;">Cancel</button>
 
 `)
 
@@ -219,32 +254,53 @@ const location = document.getElementById("location").value.trim()
 const cost = document.getElementById("cost").value
 const condition = document.getElementById("condition").value
 const notes = document.getElementById("notes").value.trim()
+const assetImageFile = document.getElementById("assetImage").files[0]
 
 if(!assetName){
   alert("Asset Name is required")
   return
 }
 
-try{
+try {
+  // Upload image if file selected
+  let assetImageUrl = null
+  let assetImageFileName = null
 
-await db.collection("assets").add({
-  AssetName: assetName,
-  Category: category,
-  SerialNumber: serialNumber,
-  Make: make,
-  Model: model,
-  YearBought: yearBought ? parseInt(yearBought) : null,
-  ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
-  Location: location,
-  Cost: cost ? parseFloat(cost) : null,
-  Condition: condition,
-  Notes: notes,
-  CreateDate: firebase.firestore.FieldValue.serverTimestamp(),
-  UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
-})
+  if(assetImageFile){
+    const maxSize = 700 * 1024
+    if(assetImageFile.size > maxSize){
+      alert(`Image file is too large (${(assetImageFile.size/1024).toFixed(0)}KB).\nPlease use a file under 700KB.\nTip: Compress the image before uploading.`)
+      return
+    }
 
-alert("Asset added successfully! 🎉")
-loadAssets()
+    const reader = new FileReader()
+    assetImageUrl = await new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(assetImageFile)
+    })
+    assetImageFileName = assetImageFile.name
+  }
+
+  await db.collection("assets").add({
+    AssetName: assetName,
+    Category: category,
+    SerialNumber: serialNumber,
+    Make: make,
+    Model: model,
+    YearBought: yearBought ? parseInt(yearBought) : null,
+    ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
+    Location: location,
+    Cost: cost ? parseFloat(cost) : null,
+    Condition: condition,
+    Notes: notes,
+    AssetImage: assetImageUrl,
+    AssetImageFileName: assetImageFileName,
+    CreateDate: firebase.firestore.FieldValue.serverTimestamp(),
+    UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
+  })
+
+  alert("Asset added successfully! 🎉")
+  loadAssets()
 
 } catch(error){
   alert("Error saving asset: " + error.message)
@@ -322,8 +378,23 @@ ${categoryOptions}
 
 <br><br>
 
-<button onclick="updateAsset('${assetId}')">Update Asset</button>
-<button onclick="loadAssets()">Cancel</button>
+<div style="background:#f0f7ff; border:2px solid #2196f3; border-radius:6px; padding:15px; margin:15px 0;">
+  <h3 style="margin-top:0; color:#1976d2;">📸 Asset Image</h3>
+
+  ${asset.AssetImage ? `<div style="margin-bottom:15px; text-align:center;">
+    <img src="${asset.AssetImage}" style="max-width:250px; max-height:250px; border:2px solid #ddd; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <p style="margin:10px 0 0 0; color:#666; font-size:12px;">Current image</p>
+  </div>` : '<p style="color:#999; font-style:italic;">No image uploaded yet</p>'}
+
+  <p style="margin:5px 0; color:#666; font-size:13px;">Upload a new photo to replace the current image (or upload the first one)</p>
+  <input type="file" id="assetImage" accept="image/*" style="margin: 10px 0; padding:8px; border:1px solid #2196f3; border-radius:4px; width:100%; box-sizing:border-box;">
+  <small style="color: #666; display:block; margin-top:5px;">✓ Formats: JPG, PNG | ✓ Max size: 700KB</small>
+</div>
+
+<br>
+
+<button onclick="updateAsset('${assetId}')" style="background:#2196f3; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">✏️ Update Asset</button>
+<button onclick="loadAssets()" style="background:#999; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; margin-left:5px; font-size:14px;">Cancel</button>
 
 `)
 
@@ -343,6 +414,7 @@ const location = document.getElementById("location").value.trim()
 const cost = document.getElementById("cost").value
 const condition = document.getElementById("condition").value
 const notes = document.getElementById("notes").value.trim()
+const assetImageFile = document.getElementById("assetImage").files[0]
 
 if(!assetName){
   alert("Asset Name is required")
@@ -351,23 +423,54 @@ if(!assetName){
 
 try{
 
-await db.collection("assets").doc(assetId).update({
-  AssetName: assetName,
-  Category: category,
-  SerialNumber: serialNumber,
-  Make: make,
-  Model: model,
-  YearBought: yearBought ? parseInt(yearBought) : null,
-  ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
-  Location: location,
-  Cost: cost ? parseFloat(cost) : null,
-  Condition: condition,
-  Notes: notes,
-  UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
-})
+  // Upload image if file selected
+  let assetImageUrl = null
+  let assetImageFileName = null
 
-alert("Asset updated successfully! ✅")
-loadAssets()
+  if(assetImageFile){
+    const maxSize = 700 * 1024
+    if(assetImageFile.size > maxSize){
+      alert(`Image file is too large (${(assetImageFile.size/1024).toFixed(0)}KB).\nPlease use a file under 700KB.\nTip: Compress the image before uploading.`)
+      return
+    }
+
+    const reader = new FileReader()
+    assetImageUrl = await new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(assetImageFile)
+    })
+    assetImageFileName = assetImageFile.name
+  }
+
+  // Get current asset data
+  const currentAssetDoc = await db.collection("assets").doc(assetId).get()
+  const currentAsset = currentAssetDoc.data()
+
+  const updateData = {
+    AssetName: assetName,
+    Category: category,
+    SerialNumber: serialNumber,
+    Make: make,
+    Model: model,
+    YearBought: yearBought ? parseInt(yearBought) : null,
+    ReplaceYear: replaceYear ? parseInt(replaceYear) : null,
+    Location: location,
+    Cost: cost ? parseFloat(cost) : null,
+    Condition: condition,
+    Notes: notes,
+    UpdateDate: firebase.firestore.FieldValue.serverTimestamp()
+  }
+
+  // Only update image if new one provided
+  if(assetImageFile){
+    updateData.AssetImage = assetImageUrl
+    updateData.AssetImageFileName = assetImageFileName
+  }
+
+  await db.collection("assets").doc(assetId).update(updateData)
+
+  alert("Asset updated successfully! ✅")
+  loadAssets()
 
 } catch(error){
   alert("Error updating asset: " + error.message)
@@ -395,3 +498,264 @@ loadAssets()
 
 }
 
+/* GENERATE ASSET REPORT */
+async function generateAssetReport(){
+
+try {
+  // Use simple query without composite index
+  const snap = await db.collection("assets").get()
+
+  if(snap.empty){
+    alert("No assets to report")
+    return
+  }
+
+  // Convert to array
+  let assets = []
+  snap.forEach((doc) => {
+    assets.push({
+      id: doc.id,
+      data: doc.data()
+    })
+  })
+
+  // Sort by category and asset name on client side
+  assets.sort((a, b) => {
+    const catA = (a.data.Category || "").toLowerCase()
+    const catB = (b.data.Category || "").toLowerCase()
+    if(catA !== catB) return catA.localeCompare(catB)
+    return (a.data.AssetName || "").localeCompare(b.data.AssetName)
+  })
+
+  // Group by category
+  let assetsByCategory = {}
+  let totalAssets = 0
+
+  assets.forEach(item => {
+    const asset = item.data
+    const category = asset.Category || "Uncategorized"
+
+    if(!assetsByCategory[category]){
+      assetsByCategory[category] = []
+    }
+    assetsByCategory[category].push(asset)
+    totalAssets++
+  })
+
+  // Sort categories alphabetically
+  const sortedCategories = Object.keys(assetsByCategory).sort()
+
+  // Create HTML report
+  let reportHtml = `
+  <html>
+  <head>
+    <title>Asset Report</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+      .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #667eea; padding-bottom: 20px; }
+      .header h1 { margin: 0; color: #667eea; }
+      .header p { margin: 5px 0; color: #666; }
+      .category-section { margin-bottom: 30px; page-break-inside: avoid; }
+      .category-title { background: #667eea; color: white; padding: 12px; margin: 0 0 10px 0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+      .category-count { background: white; color: #667eea; padding: 4px 12px; border-radius: 3px; font-weight: bold; font-size: 18px; }
+      .asset-list { padding-left: 20px; }
+      .asset-item { padding: 8px 0; border-bottom: 1px solid #eee; }
+      .asset-name { font-weight: bold; color: #333; font-size: 14px; }
+      .asset-details { font-size: 12px; color: #666; margin-top: 3px; }
+      .summary { background: #f5f5f5; padding: 20px; border-radius: 4px; margin-top: 30px; }
+      .summary h3 { margin-top: 0; color: #667eea; }
+      .summary-table { width: 100%; border-collapse: collapse; }
+      .summary-table th, .summary-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+      .summary-table th { background: #667eea; color: white; }
+      .summary-table tr:hover { background: #f9f9f9; }
+      .total-row { font-weight: bold; background: #f0f0f0; }
+      @media print {
+        body { margin: 0; }
+        .no-print { display: none; }
+        .category-section { page-break-inside: avoid; }
+      }
+      .print-buttons { text-align: center; margin-bottom: 20px; }
+      .print-buttons button { padding: 10px 20px; margin: 0 5px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+      .print-buttons button:hover { background: #5568d3; }
+    </style>
+  </head>
+  <body>
+    <div class="print-buttons no-print">
+      <button onclick="window.print()">🖨️ Print Report</button>
+      <button onclick="loadAssets()">Back to Assets</button>
+    </div>
+
+    <div class="header">
+      <h1>Church Asset Report</h1>
+      <p>Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+    </div>
+  `
+
+  // Add each category section
+  sortedCategories.forEach(category => {
+    const categoryAssets = assetsByCategory[category]
+    const count = categoryAssets.length
+
+    reportHtml += `
+    <div class="category-section">
+      <div class="category-title">
+        <span>${category}</span>
+        <span class="category-count">${count}</span>
+      </div>
+      <div class="asset-list">
+    `
+
+    categoryAssets.forEach(asset => {
+      reportHtml += `
+      <div class="asset-item">
+        <div class="asset-name">${asset.AssetName}</div>
+        <div class="asset-details">
+          ${asset.SerialNumber ? `Serial: ${asset.SerialNumber} | ` : ''}
+          ${asset.Make ? `Make: ${asset.Make}` : ''}
+          ${asset.Model ? ` / Model: ${asset.Model}` : ''}
+          ${asset.YearBought ? ` | Year: ${asset.YearBought}` : ''}
+          ${asset.Location ? ` | Location: ${asset.Location}` : ''}
+          ${asset.Condition ? ` | Condition: ${asset.Condition}` : ''}
+        </div>
+      </div>
+      `
+    })
+
+    reportHtml += `
+      </div>
+    </div>
+    `
+  })
+
+  // Add summary section
+  reportHtml += `
+  <div class="summary">
+    <h3>Summary by Category</h3>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th style="text-align: center;">Total Assets</th>
+        </tr>
+      </thead>
+      <tbody>
+  `
+
+  let summaryTotal = 0
+  sortedCategories.forEach(category => {
+    const count = assetsByCategory[category].length
+    summaryTotal += count
+    reportHtml += `
+      <tr>
+        <td>${category}</td>
+        <td style="text-align: center; font-weight: bold;">${count}</td>
+      </tr>
+    `
+  })
+
+  reportHtml += `
+      <tr class="total-row">
+        <td>TOTAL ASSETS</td>
+        <td style="text-align: center;">${summaryTotal}</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  </body>
+  </html>
+  `
+
+  // Open report in new window
+  const reportWindow = window.open('', 'assetReport')
+  reportWindow.document.write(reportHtml)
+  reportWindow.document.close()
+
+} catch(error) {
+  console.error("Error generating report:", error)
+  alert("Error generating report: " + error.message)
+}
+
+}
+
+/* VIEW ASSET IMAGE IN MODAL */
+async function viewAssetImage(assetId, assetName){
+
+try {
+  const doc = await db.collection("assets").doc(assetId).get()
+
+  if(!doc.exists){
+    alert("Asset not found")
+    return
+  }
+
+  const asset = doc.data()
+
+  if(!asset.AssetImage){
+    alert("No image attached to this asset")
+    return
+  }
+
+  show(`
+<div style="background:white; padding:20px; border-radius:8px;">
+  <h2 style="margin-top:0; color:#333;">${assetName}</h2>
+
+  <div style="margin-bottom:20px; text-align:center;">
+    <img src="${asset.AssetImage}" style="max-width:90%; max-height:600px; border:2px solid #ddd; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+  </div>
+
+  <div style="background:#f5f5f5; padding:15px; border-radius:4px; margin-bottom:20px;">
+    <h3 style="margin-top:0; color:#667eea;">Asset Details</h3>
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td style="padding:8px; font-weight:bold; width:150px;">Asset Name:</td>
+        <td style="padding:8px;">${asset.AssetName}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Category:</td>
+        <td style="padding:8px;">${asset.Category || "N/A"}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px; font-weight:bold;">Serial Number:</td>
+        <td style="padding:8px;">${asset.SerialNumber || "-"}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Make / Model:</td>
+        <td style="padding:8px;">${asset.Make || "-"} ${asset.Model ? "/ " + asset.Model : ""}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px; font-weight:bold;">Year Bought:</td>
+        <td style="padding:8px;">${asset.YearBought || "-"}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Location:</td>
+        <td style="padding:8px;">${asset.Location || "-"}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px; font-weight:bold;">Cost:</td>
+        <td style="padding:8px;">${asset.Cost ? "$" + asset.Cost.toFixed(2) : "-"}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:8px; font-weight:bold;">Condition:</td>
+        <td style="padding:8px;">${asset.Condition || "-"}</td>
+      </tr>
+      ${asset.Notes ? `<tr>
+        <td style="padding:8px; font-weight:bold;">Notes:</td>
+        <td style="padding:8px;">${asset.Notes}</td>
+      </tr>` : ''}
+    </table>
+  </div>
+
+  <div style="display:flex; gap:10px; justify-content:center;">
+    <button onclick="editAsset('${assetId}')" style="background:#2196f3; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">✏️ Edit Asset</button>
+    <button onclick="loadAssets()" style="background:#999; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; font-size:14px;">Back to List</button>
+  </div>
+</div>
+  `)
+
+} catch(error) {
+  console.error("Error viewing image:", error)
+  alert("Error loading image: " + error.message)
+}
+
+}
