@@ -991,6 +991,8 @@ try {
   console.error("Error recording income: ", error)
 }
 
+}
+
 /* PRINT PARTICIPANTS LIST */
 async function printParticipantsList(eventId, eventName){
 
