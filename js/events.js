@@ -240,6 +240,10 @@ show(`
 
 <h3>Participants List</h3>
 
+<div style="margin-bottom: 15px;">
+  <button onclick="printParticipantsList('${eventId}', '${event.name}')" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">🖨️ Print Participants List</button>
+</div>
+
 <table border="1" width="100%" style="border-collapse: collapse;">
 <thead style="background-color: #667eea; color: white;">
 <tr>
@@ -987,4 +991,197 @@ try {
   console.error("Error recording income: ", error)
 }
 
+/* PRINT PARTICIPANTS LIST */
+async function printParticipantsList(eventId, eventName){
+
+  try {
+    const eventDoc = await db.collection("events").doc(eventId).get()
+    const event = eventDoc.data()
+
+    const regSnap = await db.collection("eventRegistrations")
+      .where("eventId", "==", eventId)
+      .get()
+
+    let totalContribution = 0
+    let totalBalance = 0
+    let participantsData = []
+
+    regSnap.forEach(doc => {
+      const p = doc.data()
+      const contribution = p.contribution || 0
+      const calculatedBalance = event.fee - contribution
+
+      totalContribution += contribution
+      totalBalance += calculatedBalance
+
+      participantsData.push({
+        name: p.name,
+        phone: p.phone,
+        guardian: p.guardian,
+        contribution: contribution,
+        balance: calculatedBalance,
+        foodCoupons: p.foodCoupons || 0,
+        checkedIn: p.checkedIn ? 'Yes' : 'No'
+      })
+    })
+
+    // Sort by name
+    participantsData.sort((a, b) => a.name.localeCompare(b.name))
+
+    // Create print window
+    const printWindow = window.open('', '', 'width=900,height=600')
+
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${eventName} - Participants List</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: white;
+          }
+          h1 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+          }
+          .event-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #555;
+          }
+          td {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+          }
+          tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
+          tr:hover {
+            background-color: #f0f0f0;
+          }
+          .total-row {
+            background-color: #e8e8e8;
+            font-weight: bold;
+            font-size: 14px;
+          }
+          .summary {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 5px solid #667eea;
+            margin-top: 20px;
+          }
+          .summary p {
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          .summary strong {
+            color: #667eea;
+          }
+          @media print {
+            body {
+              margin: 0;
+            }
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>📋 ${eventName} - Participants List</h1>
+
+        <div class="event-info">
+          <p><strong>Event Dates:</strong> ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}</p>
+          <p><strong>Location:</strong> ${event.location}</p>
+          <p><strong>Event Fee:</strong> $${event.fee}</p>
+          <p><strong>Total Participants:</strong> ${participantsData.length}</p>
+          <p><strong>Print Date:</strong> ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%;">#</th>
+              <th style="width: 20%;">Participant Name</th>
+              <th style="width: 15%;">Phone</th>
+              <th style="width: 15%;">Guardian</th>
+              <th style="width: 12%; text-align: right;">Contribution</th>
+              <th style="width: 12%; text-align: right;">Balance</th>
+              <th style="width: 10%;">Checked In</th>
+              <th style="width: 11%;">Food Coupons</th>
+            </tr>
+          </thead>
+          <tbody>
+    `
+
+    // Add participant rows
+    participantsData.forEach((p, index) => {
+      htmlContent += `
+        <tr>
+          <td style="text-align: center;">${index + 1}</td>
+          <td>${p.name}</td>
+          <td>${p.phone}</td>
+          <td>${p.guardian}</td>
+          <td style="text-align: right;">$${p.contribution.toFixed(2)}</td>
+          <td style="text-align: right;">$${p.balance.toFixed(2)}</td>
+          <td style="text-align: center;">${p.checkedIn}</td>
+          <td style="text-align: center;">${p.foodCoupons}</td>
+        </tr>
+      `
+    })
+
+    // Add total row
+    htmlContent += `
+        <tr class="total-row">
+          <td colspan="4" style="text-align: right;"><strong>TOTALS:</strong></td>
+          <td style="text-align: right;"><strong>$${totalContribution.toFixed(2)}</strong></td>
+          <td style="text-align: right;"><strong>$${totalBalance.toFixed(2)}</strong></td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="summary">
+      <p><strong>Summary:</strong></p>
+      <p>Total Participants: <strong>${participantsData.length}</strong></p>
+      <p>Total Collected: <strong>$${totalContribution.toFixed(2)}</strong></p>
+      <p>Pending Balance: <strong>$${totalBalance.toFixed(2)}</strong></p>
+      <p>Expected Revenue: <strong>$${(participantsData.length * event.fee).toFixed(2)}</strong></p>
+    </div>
+
+    <div class="no-print" style="margin-top: 30px; text-align: center;">
+      <button onclick="window.print()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;">🖨️ Print</button>
+      <button onclick="window.close()" style="padding: 10px 20px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Close</button>
+    </div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+
+  } catch(error) {
+    console.error("Error printing participants list:", error)
+    alert("Error generating print preview: " + error.message)
+  }
 }
