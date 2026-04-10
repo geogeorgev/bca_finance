@@ -17,8 +17,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-
-
 </head>
 
 <body>
@@ -30,19 +28,20 @@
     <h1>BCA Administration</h1>
 </div>
 
-<div class="menu">
+<div class="menu" id="navigationMenu" style="display: none;">
 
-    <button onclick="treasurerDashboard()">Dashboard</button>
-    <button onclick="loadMembers()">Members</button>
-    <button onclick="loadBudget()">Budget</button>
-    <button onclick="loadIncome()">Collection</button>
-    <button onclick="loadExpense()">Expense</button>
-    <button onclick="loadReports()">Reports</button>
-    <button onclick="loadEvents()">Events</button>
-    <button onclick="loadBankScreen()">Bank Reconciliation</button>
-    <button onclick="loadAssets()">🛠️ Assets</button>
-    <button onclick="loadUsers()" style="background: #d32f2f; color: white;">👤 Users & Roles</button>
-    <button onclick="showLoginScreen()" style="background: #666; color: white;">🔓 Logout/Login</button>
+    <button onclick="navigateTo('dashboard')">Dashboard</button>
+    <button onclick="navigateTo('members')">Members</button>
+    <button onclick="navigateTo('budget')">Budget</button>
+    <button onclick="navigateTo('income')">Collection</button>
+    <button onclick="navigateTo('expense')">Expense</button>
+    <button onclick="navigateTo('reports')">Reports</button>
+    <button onclick="navigateTo('events')">Events</button>
+    <button onclick="navigateTo('bank')">Bank Reconciliation</button>
+    <button onclick="navigateTo('assets')" style="background: #2196f3;">🛠️ Assets</button>
+    <button onclick="navigateTo('users')" style="background: #d32f2f; color: white;">👤 Users & Roles</button>
+    <button onclick="navigateTo('login')" style="background: #666; color: white;">🔓 Logout/Login</button>
+
 </div>
 
 <div id="content"></div>
@@ -69,11 +68,76 @@
 <!-- Users Management -->
 <script src="js/users.js"></script>
 
-<!-- Initialize App (Check Login) -->
+<!-- Router System -->
 <script>
-  window.addEventListener("load", function(){
-    initializeApp()
-  })
+
+/* ROUTER CONFIGURATION */
+const routes = {
+  'dashboard': { handler: treasurerDashboard, requiresAuth: true },
+  'members': { handler: loadMembers, requiresAuth: true },
+  'budget': { handler: loadBudget, requiresAuth: true },
+  'income': { handler: loadIncome, requiresAuth: true },
+  'expense': { handler: loadExpense, requiresAuth: true },
+  'reports': { handler: loadReports, requiresAuth: true },
+  'events': { handler: loadEvents, requiresAuth: true },
+  'bank': { handler: loadBankScreen, requiresAuth: true },
+  'assets': { handler: loadAssets, requiresAuth: true },
+  'users': { handler: loadUsers, requiresAuth: true },
+  'login': { handler: showLoginScreen, requiresAuth: false }
+};
+
+/* NAVIGATE TO PAGE */
+function navigateTo(page) {
+  window.location.hash = `#/${page}`;
+}
+
+/* ROUTER HANDLER */
+function handleRouting() {
+  const hash = window.location.hash.slice(2) || 'login'; // Remove #/
+  const route = routes[hash];
+
+  if (!route) {
+    navigateTo('login');
+    return;
+  }
+
+  const user = getCurrentUser();
+  const navMenu = document.getElementById('navigationMenu');
+
+  // Check authentication
+  if (route.requiresAuth && !user) {
+    navMenu.style.display = 'none';
+    showLoginScreen();
+    return;
+  }
+
+  // Show navigation menu if logged in
+  if (user && hash !== 'login') {
+    navMenu.style.display = 'block';
+  } else {
+    navMenu.style.display = 'none';
+  }
+
+  // Execute route handler
+  try {
+    route.handler();
+  } catch (error) {
+    console.error('Route handler error:', error);
+    navigateTo('login');
+  }
+}
+
+/* INITIALIZE APP */
+window.addEventListener('load', function() {
+  initializeApp();
+
+  // Handle hash changes
+  window.addEventListener('hashchange', handleRouting);
+
+  // Initial route
+  setTimeout(handleRouting, 500);
+});
+
 </script>
 
 </body>

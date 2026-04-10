@@ -111,8 +111,8 @@ try {
   console.log("Login successful:", userData.Name, userData.Role)
   logAuditEvent("LOGIN", { email: email, role: userData.Role })
 
-  // Reload app
-  window.location.reload()
+  // Navigate to dashboard using router
+  navigateTo('dashboard')
 
 } catch(error){
   console.error("Login error:", error)
@@ -221,6 +221,31 @@ clearSession()
 
 showLoginScreen()
 
+}
+
+/* LOGOUT FUNCTION */
+async function logout(){
+  try {
+    // Clear session storage
+    sessionStorage.clear()
+    localStorage.removeItem('bcaSession')
+    localStorage.removeItem('rememberMe')
+
+    // Sign out from Firebase
+    await firebase.auth().signOut()
+
+    // Log audit event
+    logAuditEvent("LOGOUT", { email: getCurrentUser()?.userEmail || "unknown" })
+
+    // Navigate to login using router
+    navigateTo('login')
+
+    console.log("User logged out successfully")
+  } catch(error){
+    console.error("Logout error:", error)
+    // Force logout even if error
+    navigateTo('login')
+  }
 }
 
 /* GET ROLE LEVEL */
@@ -477,8 +502,8 @@ if(!user){
   return
 }
 
-// User is logged in, show app
-loadDashboard()
+// User is logged in, navigate to dashboard using router
+navigateTo('dashboard')
 
 }
 
@@ -491,14 +516,14 @@ try {
   if(usersSnap.empty){
     // No users exist - show setup mode
     console.log("First time setup detected - allowing access")
-    loadDashboard() // Allow access to add first user
+    navigateTo('users') // Go to users setup
   } else {
     // Users exist - show login
-    showLoginScreen()
+    navigateTo('login')
   }
 } catch(error){
   console.error("Error checking setup:", error)
-  showLoginScreen()
+  navigateTo('login')
 }
 
 }
