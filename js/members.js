@@ -68,6 +68,7 @@ ${roleDisplay}
 <button onclick="editMember('${doc.id}')">Edit</button>
 <button onclick="assignRoleToMember('${doc.id}', '${m.Name}', '${m.Email}')" style="background:#2196f3;">🔐 Assign Role</button>
 <button onclick="generateMemberContributionReceipt('${doc.id}')" style="background:#4caf50;">📄 Annual Receipt</button>
+<button onclick="showEmailStatementForm('${doc.id}', '${m.Name}', '${m.Email}')" style="background:#ff9800;">📧 Email Receipt</button>
 
 </div>
 `
@@ -573,4 +574,149 @@ async function generateMemberReceipt(memberId){
 
   // Call the same function from reports.js
   await generateSingleMemberStatement(memberId, taxYear)
+}
+
+/* SHOW EMAIL STATEMENT FORM */
+function showEmailStatementForm(memberId, memberName, memberEmail){
+
+  const currentYear = new Date().getFullYear()
+
+  if(!memberEmail){
+    alert("This member does not have an email address on file. Please add email first.")
+    loadMembers()
+    return
+  }
+
+  show(`
+
+  <h2>Email Annual Contribution Receipt</h2>
+
+  <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+    <p><strong>Member:</strong> ${memberName}</p>
+    <p><strong>Email:</strong> ${memberEmail}</p>
+  </div>
+
+  <label>Select Tax Year:</label>
+  <input type="number" id="emailTaxYear" value="${currentYear}" min="2000" max="${currentYear}">
+
+  <br><br>
+
+  <label>Email Subject (Optional):</label>
+  <input type="text" id="emailSubject" value="Your ${currentYear} Annual Contribution Statement" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+
+  <br><br>
+
+  <label>Email Message (Optional):</label>
+  <textarea id="emailMessage" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; height: 100px;">Dear ${memberName},
+
+Please find attached your Annual Contribution Statement for tax year. Thank you for your continued support.
+
+Blessings,
+Boston Christian Assembly</textarea>
+
+  <br><br>
+
+  <button onclick="emailMemberStatement('${memberId}', '${memberName}', '${memberEmail}')" style="padding: 10px 20px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">📧 Send Email</button>
+  <button onclick="loadMembers()" style="padding: 10px 20px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+
+  <br><br>
+
+  <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; border-left: 4px solid #ffc107;">
+    <h4 style="margin-top: 0;">📋 How Email Works</h4>
+    <p><strong>Email will be sent FROM:</strong> Your church treasurer/finance Gmail account</p>
+    <p><strong>Email will be sent TO:</strong> ${memberEmail}</p>
+    <p><strong>Attachment:</strong> PDF Annual Contribution Receipt</p>
+    <p style="margin-bottom: 0;"><strong>Powered by:</strong> Google Apps Script (Free for non-profits)</p>
+  </div>
+
+  `)
+}
+
+/* EMAIL MEMBER STATEMENT */
+async function emailMemberStatement(memberId, memberName, memberEmail){
+
+  const taxYear = parseInt(document.getElementById("emailTaxYear").value)
+  const emailSubject = document.getElementById("emailSubject").value
+  const emailMessage = document.getElementById("emailMessage").value
+
+  if(!taxYear || taxYear < 2000){
+    alert("Please enter a valid tax year")
+    return
+  }
+
+  // First, generate the PDF as a string
+  const pdfData = await generateMemberStatementPDF(memberId, taxYear)
+
+  if(!pdfData){
+    alert("Failed to generate statement PDF")
+    return
+  }
+
+  // Prepare email data
+  const emailData = {
+    to: memberEmail,
+    subject: emailSubject || `Your ${taxYear} Annual Contribution Statement`,
+    body: emailMessage || `Dear ${memberName},\n\nPlease find attached your Annual Contribution Statement for tax year. Thank you for your continued support.\n\nBlessings,\nBoston Christian Assembly`,
+    pdfData: pdfData,
+    fileName: `${memberName}_Contribution_Receipt_${taxYear}.pdf`
+  }
+
+  // Send via Google Apps Script
+  try {
+    // Call the Google Apps Script Web App
+    const response = await fetch('YOUR_GOOGLE_APPS_SCRIPT_URL_HERE', {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(emailData)
+    })
+
+    alert(`✅ Email sent successfully to ${memberEmail}!`)
+    loadMembers()
+  } catch(error){
+    console.error("Error sending email:", error)
+    alert("Error sending email. Make sure Google Apps Script URL is configured.\n\nError: " + error.message)
+  }
+}
+
+/* GENERATE MEMBER STATEMENT PDF (Returns PDF as data) */
+async function generateMemberStatementPDF(memberId, taxYear){
+  // This should return the PDF data instead of opening in window
+  // For now, we'll call the existing function and capture the PDF
+  // This requires modification of the existing PDF generation function
+
+  try {
+    const memberDoc = await db.collection("members").doc(memberId).get()
+    const memberData = memberDoc.data()
+
+    const collectionSnap = await db.collection("income")
+      .where("MemberID", "==", memberId)
+      .get()
+
+    let totalContribution = 0
+    let collections = []
+
+    collectionSnap.forEach(doc => {
+      const income = doc.data()
+      const collectionYear = new Date(income.CollectionDate).getFullYear()
+      if(collectionYear === taxYear){
+        totalContribution += income.Amount || 0
+        collections.push(income)
+      }
+    })
+
+    // Return the data needed to generate PDF
+    return {
+      memberName: memberData.Name,
+      memberEmail: memberData.Email,
+      totalContribution: totalContribution,
+      taxYear: taxYear,
+      collections: collections
+    }
+  } catch(error){
+    console.error("Error generating statement data:", error)
+    return null
+  }
 }

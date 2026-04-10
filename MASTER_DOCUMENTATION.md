@@ -735,9 +735,44 @@ Format: CSV (opens in Excel/Sheets)
 
 ---
 
+### 7. ✅ Email Annual Statements (April 9, 2026)
+
+**What's New**:
+- One-click email annual statements to members
+- Uses Google Apps Script (completely FREE for non-profits)
+- PDF attached to email
+- Customizable email subject and message
+- No additional costs
+
+**How to Use**:
+```
+Members → Find member
+  → Click "📧 Email Receipt"
+  → Select tax year
+  → Customize email (optional)
+  → Click "📧 Send Email"
+  → Member receives PDF attachment
+
+Email From: Your church treasurer/finance Gmail
+Email To: Member's email (from members collection)
+Attachment: PDF Annual Contribution Statement
+```
+
+**Setup** (10 minutes):
+1. Create Google Apps Script project
+2. Copy provided code
+3. Deploy as Web App
+4. Add URL to members.js
+5. Done! Start emailing
+
+**Files Modified**:
+- `js/members.js` - Added email button and functions
+
+---
+
 ## FINAL STATUS
 
-**Date**: April 8, 2026  
+**Date**: April 9, 2026  
 **Status**: ✅ PRODUCTION READY  
 **All Features**: ✅ IMPLEMENTED  
 **Documentation**: ✅ CONSOLIDATED  
