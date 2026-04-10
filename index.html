@@ -104,6 +104,12 @@ function handleRouting() {
   const user = getCurrentUser();
   const navMenu = document.getElementById('navigationMenu');
 
+  // Safety check - ensure navMenu element exists before accessing style
+  if (!navMenu) {
+    console.warn('Navigation menu element not found');
+    return;
+  }
+
   // Check authentication
   if (route.requiresAuth && !user) {
     navMenu.style.display = 'none';
