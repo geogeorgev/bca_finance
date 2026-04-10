@@ -232,8 +232,10 @@ showLoginScreen()
 /* LOGOUT FUNCTION */
 async function logout(){
   try {
-    // Clear session storage
+    // Clear all session storage
     sessionStorage.clear()
+    sessionStorage.removeItem('userSession')
+    localStorage.removeItem('userSession')
     localStorage.removeItem('bcaSession')
     localStorage.removeItem('rememberMe')
 
