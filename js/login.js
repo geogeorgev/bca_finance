@@ -3,9 +3,15 @@
 /* LOGIN SCREEN */
 function showLoginScreen(){
 
-document.body.innerHTML = `
+const contentDiv = document.getElementById("content")
+if(!contentDiv){
+  console.error("Content div not found")
+  return
+}
 
-<div id="loginContainer" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: Arial, sans-serif;">
+contentDiv.innerHTML = `
+
+<div id="loginContainer" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: Arial, sans-serif; margin: 0; padding: 0;">
 
   <div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 400px;">
 
@@ -304,7 +310,13 @@ function showPasswordReset(event){
 
 if(event) event.preventDefault()
 
-document.body.innerHTML = `
+const contentDiv = document.getElementById("content")
+if(!contentDiv){
+  console.error("Content div not found")
+  return
+}
+
+contentDiv.innerHTML = `
 
 <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: Arial, sans-serif;">
 

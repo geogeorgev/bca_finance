@@ -140,8 +140,8 @@ window.addEventListener('load', function() {
   // Handle hash changes
   window.addEventListener('hashchange', handleRouting);
 
-  // Initial route
-  setTimeout(handleRouting, 500);
+  // Initial route - use setTimeout to ensure DOM is ready
+  setTimeout(handleRouting, 100);
 });
 
 </script>
