@@ -104,24 +104,20 @@ function handleRouting() {
   const user = getCurrentUser();
   const navMenu = document.getElementById('navigationMenu');
 
-  // Safety check - ensure navMenu element exists before accessing style
-  if (!navMenu) {
-    console.warn('Navigation menu element not found');
-    return;
-  }
-
   // Check authentication
   if (route.requiresAuth && !user) {
-    navMenu.style.display = 'none';
+    if (navMenu) navMenu.style.display = 'none';
     showLoginScreen();
     return;
   }
 
-  // Show navigation menu if logged in
-  if (user && hash !== 'login') {
-    navMenu.style.display = 'block';
-  } else {
-    navMenu.style.display = 'none';
+  // Show/hide navigation menu if it exists
+  if (navMenu) {
+    if (user && hash !== 'login') {
+      navMenu.style.display = 'block';
+    } else {
+      navMenu.style.display = 'none';
+    }
   }
 
   // Execute route handler
