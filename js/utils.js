@@ -1,6 +1,12 @@
 function show(html){
 
-document.getElementById("content").innerHTML = html
+const contentDiv = document.getElementById("content")
+if(!contentDiv){
+  console.error("Content div not found - cannot render content")
+  return
+}
+
+contentDiv.innerHTML = html
 
 }
 

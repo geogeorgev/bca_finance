@@ -3,9 +3,15 @@
 /* LOGIN SCREEN */
 function showLoginScreen(){
 
-document.body.innerHTML = `
+const contentDiv = document.getElementById("content")
+if(!contentDiv){
+  console.error("Content div not found")
+  return
+}
 
-<div id="loginContainer" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: Arial, sans-serif;">
+contentDiv.innerHTML = `
+
+<div id="loginContainer" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: Arial, sans-serif; margin: 0; padding: 0;">
 
   <div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 400px;">
 
@@ -111,8 +117,8 @@ try {
   console.log("Login successful:", userData.Name, userData.Role)
   logAuditEvent("LOGIN", { email: email, role: userData.Role })
 
-  // Reload app
-  window.location.reload()
+  // Navigate to dashboard using router
+  navigateTo('dashboard')
 
 } catch(error){
   console.error("Login error:", error)
@@ -223,6 +229,33 @@ showLoginScreen()
 
 }
 
+/* LOGOUT FUNCTION */
+async function logout(){
+  try {
+    // Clear all session storage
+    sessionStorage.clear()
+    sessionStorage.removeItem('userSession')
+    localStorage.removeItem('userSession')
+    localStorage.removeItem('bcaSession')
+    localStorage.removeItem('rememberMe')
+
+    // Sign out from Firebase
+    await firebase.auth().signOut()
+
+    // Log audit event
+    logAuditEvent("LOGOUT", { email: getCurrentUser()?.userEmail || "unknown" })
+
+    // Navigate to login using router
+    navigateTo('login')
+
+    console.log("User logged out successfully")
+  } catch(error){
+    console.error("Logout error:", error)
+    // Force logout even if error
+    navigateTo('login')
+  }
+}
+
 /* GET ROLE LEVEL */
 function getRoleLevel(role){
 
@@ -279,7 +312,13 @@ function showPasswordReset(event){
 
 if(event) event.preventDefault()
 
-document.body.innerHTML = `
+const contentDiv = document.getElementById("content")
+if(!contentDiv){
+  console.error("Content div not found")
+  return
+}
+
+contentDiv.innerHTML = `
 
 <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: Arial, sans-serif;">
 
@@ -477,8 +516,8 @@ if(!user){
   return
 }
 
-// User is logged in, show app
-loadDashboard()
+// User is logged in, navigate to dashboard using router
+navigateTo('dashboard')
 
 }
 
@@ -491,14 +530,14 @@ try {
   if(usersSnap.empty){
     // No users exist - show setup mode
     console.log("First time setup detected - allowing access")
-    loadDashboard() // Allow access to add first user
+    navigateTo('users') // Go to users setup
   } else {
     // Users exist - show login
-    showLoginScreen()
+    navigateTo('login')
   }
 } catch(error){
   console.error("Error checking setup:", error)
-  showLoginScreen()
+  navigateTo('login')
 }
 
 }

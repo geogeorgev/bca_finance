@@ -8,7 +8,7 @@
 const ASSET_CATEGORIES = [
   "Audio Equipment",
   "Musical Instruments",
-  "Office Equipment",
+  "Office Equipment A",
   "Furniture",
   "Tools & Equipment",
   "Technology",
